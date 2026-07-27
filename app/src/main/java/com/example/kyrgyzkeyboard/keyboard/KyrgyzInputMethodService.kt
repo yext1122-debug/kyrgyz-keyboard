@@ -49,6 +49,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.example.kyrgyzkeyboard.utils.BidiControls
 import com.example.kyrgyzkeyboard.ui.theme.KyrgyzKeyboardTheme
 
 class KyrgyzInputMethodService :
@@ -151,8 +152,17 @@ class KyrgyzInputMethodService :
             FunctionType.NEWLINE -> ic.commitText("\n", 1)
             FunctionType.BACKSPACE -> {
                 val selected = ic.getSelectedText(0)
-                if (!selected.isNullOrEmpty()) ic.commitText("", 1)
-                else ic.deleteSurroundingText(1, 0)
+                if (!selected.isNullOrEmpty()) {
+                    ic.commitText("", 1)
+                } else {
+                    // 删除一个可见字符；若其前面紧跟自动插入的双向控制符，则一并删除，避免残留
+                    val before = ic.getTextBeforeCursor(2, 0)
+                    val deleteCount = if (before != null && before.length == 2 &&
+                        !BidiControls.isBidiControl(before[1]) &&
+                        BidiControls.isBidiControl(before[0])
+                    ) 2 else 1
+                    ic.deleteSurroundingText(deleteCount, 0)
+                }
             }
             FunctionType.DONE -> requestHideSelf(0)
             else -> Unit
