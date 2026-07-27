@@ -5,7 +5,8 @@ build/
 app/build/
 local.properties
 *.iml
-.idea/
+.idea/*
+!.idea/encodings.xml
 captures/
 .externalNativeBuild/
 .cxx/

@@ -215,7 +215,7 @@ private fun AddWordDialog(
                 OutlinedTextField(
                     value = pinyin,
                     onValueChange = { pinyin = it },
-                    label = { Text(text = "拼读") },
+                    label = { Text(text = "拼音") },
                     singleLine = true
                 )
                 OutlinedTextField(
