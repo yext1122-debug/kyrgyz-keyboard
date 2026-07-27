@@ -1,4 +1,5 @@
-﻿// Modified for tri-language support: 柯语 / 英文 / 中文拼音
+// Modified for tri-language support: 柯语 / 英文 / 中文拼音
+// Updated: 柯语 Shift 层支持（GB 图 6）+ Shift 双击锁定
 package com.example.kyrgyzkeyboard.keyboard
 
 /**
@@ -28,6 +29,17 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
     var englishShift: Boolean = false
         private set
 
+    /** 柯语 Shift 状态（图 6 变体层）。*/
+    var kyrgyzShift: Boolean = false
+        private set
+
+    /** Shift 锁定（连续按两次 Shift 开启，再按一次取消）。*/
+    var shiftLocked: Boolean = false
+        private set
+
+    /** 上次按 Shift 的时间戳（用于检测双击）。*/
+    private var lastShiftTime: Long = 0L
+
     /** 拼音编辑串。*/
     private val composingBuilder = StringBuilder()
     val composing: String get() = composingBuilder.toString()
@@ -38,7 +50,7 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
 
     fun getRows(): List<KeyboardRow> = when (currentLanguage) {
         Language.KYRGYZ -> when (currentLayout) {
-            LayoutType.DEFAULT -> KyrgyzKeyboardLayouts.DefaultLayout
+            LayoutType.DEFAULT -> KyrgyzKeyboardLayouts.forType(LayoutType.DEFAULT, kyrgyzShift)
             LayoutType.SYMBOL -> KyrgyzKeyboardLayouts.SymbolLayout
         }
         Language.ENGLISH -> when (currentLayout) {
@@ -56,6 +68,8 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
             LayoutType.DEFAULT -> LayoutType.SYMBOL
             LayoutType.SYMBOL -> LayoutType.DEFAULT
         }
+        kyrgyzShift = false
+        shiftLocked = false
     }
 
     /** 循环切换语言。切换时清空拼音编辑串。*/
@@ -64,6 +78,8 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
         currentLanguage = currentLanguage.next()
         currentLayout = LayoutType.DEFAULT
         englishShift = false
+        kyrgyzShift = false
+        shiftLocked = false
     }
 
     /** 处理按键。返回 true 表示已消费。*/
@@ -73,6 +89,7 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
             KeyType.SYMBOL -> {
                 commitComposing()
                 if (key.code.isNotEmpty()) listener.onKeyPress(key.code)
+                autoCancelShift()
                 true
             }
             KeyType.FUNCTION -> {
@@ -93,10 +110,11 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
         }
         if (code.isNotEmpty()) {
             val out = if (currentLanguage == Language.ENGLISH && englishShift) {
-                code.uppercase().also { englishShift = false }
+                code.uppercase().also { if (!shiftLocked) englishShift = false }
             } else code
             listener.onKeyPress(out)
         }
+        autoCancelShift()
         return true
     }
 
@@ -110,9 +128,44 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
                 switchLanguage()
             }
             FunctionType.SHIFT -> {
-                if (currentLanguage == Language.ENGLISH) {
-                    englishShift = !englishShift
+                val now = System.currentTimeMillis()
+                val isDoubleClick = (now - lastShiftTime) < 300L
+
+                if (currentLanguage == Language.KYRGYZ) {
+                    when {
+                        isDoubleClick -> {
+                            // 双击：锁定 Shift
+                            kyrgyzShift = true
+                            shiftLocked = true
+                        }
+                        kyrgyzShift && shiftLocked -> {
+                            // 已锁定时按 Shift：解锁并取消
+                            kyrgyzShift = false
+                            shiftLocked = false
+                        }
+                        else -> {
+                            // 单次按 Shift：切换状态，不锁定
+                            kyrgyzShift = !kyrgyzShift
+                            shiftLocked = false
+                        }
+                    }
+                } else if (currentLanguage == Language.ENGLISH) {
+                    when {
+                        isDoubleClick -> {
+                            englishShift = true
+                            shiftLocked = true
+                        }
+                        englishShift && shiftLocked -> {
+                            englishShift = false
+                            shiftLocked = false
+                        }
+                        else -> {
+                            englishShift = !englishShift
+                            shiftLocked = false
+                        }
+                    }
                 }
+                lastShiftTime = now
             }
             FunctionType.BACKSPACE -> {
                 if (currentLanguage == Language.PINYIN && composingBuilder.isNotEmpty()) {
@@ -122,6 +175,7 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
                     return
                 }
                 listener.onKeyAction(FunctionType.BACKSPACE)
+                autoCancelShift()
             }
             FunctionType.SPACE -> {
                 if (currentLanguage == Language.PINYIN && candidates.isNotEmpty()) {
@@ -129,27 +183,39 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
                     return
                 }
                 if (currentLanguage == Language.PINYIN && composingBuilder.isNotEmpty()) {
-                    // 无候选时空格直接上屏拼音串本身（替换 composing）
-                    val text = composing
+                    // 无候选时空格直接上屏拼音串本身
+                    listener.onCommitCandidate(composing)
                     composingBuilder.clear()
                     candidates = emptyList()
-                    listener.onCommitCandidate(text)
+                    listener.onComposingChanged("")
                     return
                 }
                 listener.onKeyAction(FunctionType.SPACE)
+                autoCancelShift()
             }
             FunctionType.NEWLINE -> {
                 commitComposing()
                 listener.onKeyAction(FunctionType.NEWLINE)
+                autoCancelShift()
             }
-            FunctionType.DONE -> {
-                clearComposing()
-                listener.onKeyAction(FunctionType.DONE)
+            else -> {
+                commitComposing()
+                listener.onKeyAction(fn)
             }
         }
     }
 
-    /** 从候选栏点选第 [index] 个候选（0 起）。*/
+    /** 非锁定模式下，输完一个字符自动取消 Shift。*/
+    private fun autoCancelShift() {
+        if (!shiftLocked) {
+            when (currentLanguage) {
+                Language.KYRGYZ -> kyrgyzShift = false
+                Language.ENGLISH -> englishShift = false
+                else -> {}
+            }
+        }
+    }
+
     fun selectCandidate(index: Int) {
         if (index !in candidates.indices) return
         val chosen = candidates[index]
@@ -163,6 +229,7 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
         if (variant.isEmpty()) return false
         commitComposing()
         listener.onKeyPress(variant)
+        autoCancelShift()
         return true
     }
 
