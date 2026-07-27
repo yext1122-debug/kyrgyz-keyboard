@@ -204,7 +204,6 @@ private fun KeyboardRoot(
     onStateChanged: () -> Unit
 ) {
     val isKyrgyz = language == Language.KYRGYZ
-    val isDigital = isKyrgyz && layout == LayoutType.DIGITAL
     val activeShift = if (isKyrgyz) kyrgyzShift else englishShift
     val rows = remember(language, layout, kyrgyzShift, englishShift) { engine.getRows() }
     val isRtl = language == Language.KYRGYZ
@@ -221,8 +220,8 @@ private fun KeyboardRoot(
                     .padding(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // 候选栏：拼音模式或九键数字键盘模式显示
-                if (language == Language.PINYIN || isDigital) {
+                // 候选栏：仅拼音模式显示
+                if (language == Language.PINYIN) {
                     CandidateBar(
                         composing = composing,
                         candidates = candidates,

@@ -239,8 +239,6 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
                     composingBuilder.deleteCharAt(composingBuilder.length - 1)
                     if (currentLanguage == Language.PINYIN) {
                         updatePinyinCandidates()
-                    } else if (currentLayout == LayoutType.DIGITAL) {
-                        updateT9Candidates()
                     }
                     listener.onComposingChanged(composing)
                     return
@@ -250,7 +248,7 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
                 lastChar = null
             }
             FunctionType.SPACE -> {
-                if ((currentLanguage == Language.PINYIN || currentLayout == LayoutType.DIGITAL) && candidates.isNotEmpty()) {
+                if (currentLanguage == Language.PINYIN && candidates.isNotEmpty()) {
                     selectCandidate(0)
                     return
                 }
@@ -326,20 +324,6 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
         else PinyinDictionary.query(composingBuilder.toString())
     }
 
-    private fun updateT9Candidates() {
-        if (composingBuilder.isEmpty()) {
-            candidates = emptyList()
-            return
-        }
-        val digitSequence = StringBuilder()
-        for (char in composingBuilder) {
-            val digit = T9Engine.getKeyForLetter(char)
-            if (digit != null) {
-                digitSequence.append(digit)
-            }
-        }
-        candidates = T9Engine.getCandidates(digitSequence.toString())
-    }
 
     private fun commitComposing() {
         if (composingBuilder.isNotEmpty()) {
