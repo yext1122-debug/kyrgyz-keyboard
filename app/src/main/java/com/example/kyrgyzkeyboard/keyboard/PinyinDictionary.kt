@@ -1,4 +1,4 @@
-﻿// Added for tri-language support: 精简内置拼音字典
+// Added for tri-language support: 精简内置拼音字典
 package com.example.kyrgyzkeyboard.keyboard
 
 /**

@@ -1,4 +1,4 @@
-﻿// Added for tri-language support: 柯语 / 英文 / 中文拼音
+// Added for tri-language support: 柯语 / 英文 / 中文拼音
 package com.example.kyrgyzkeyboard.keyboard
 
 /** 输入语言。*/
