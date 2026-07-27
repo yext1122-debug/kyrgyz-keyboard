@@ -1,80 +1,94 @@
 // Modified for tri-language support: 柯语 / 英文 / 中文拼音
-// Updated: 柯语 Shift 层支持（GB 图 6）+ Shift 双击锁定
+// Updated: v1.2.4 修复 1 键和 0 键无法输出数字的问题
 package com.example.kyrgyzkeyboard.keyboard
 
-/**
- * 键盘引擎：管理当前语言、布局、拼音候选状态。
- *
- * Engine 本身不持有 View / Context，纯逻辑；通过 [Listener] 把动作回调给宿主（IME Service）。
- */
+import com.example.kyrgyzkeyboard.utils.BidiControls
+
 class KyrgyzKeyboardEngine(private val listener: Listener) {
 
     interface Listener {
         fun onKeyPress(code: String)
         fun onKeyAction(action: FunctionType)
-        /** 拼音正在编辑串更新（未 commit）。空串表示清除。*/
         fun onComposingChanged(composing: String) {}
-        /** 提交拼音候选：宿主应用此文本替换掉当前 composing 区域，不产生残留。*/
         fun onCommitCandidate(text: String) {}
+        fun onDeleteBeforeCursor(count: Int) {}
     }
 
     var currentLanguage: Language = Language.KYRGYZ
         private set
 
-    /** 柯语/英语内的子布局（字母 vs 符号）。*/
     var currentLayout: LayoutType = LayoutType.DEFAULT
         private set
 
-    /** 英文是否大写。*/
     var englishShift: Boolean = false
         private set
 
-    /** 柯语 Shift 状态（图 6 变体层）。*/
     var kyrgyzShift: Boolean = false
         private set
 
-    /** Shift 锁定（连续按两次 Shift 开启，再按一次取消）。*/
     var shiftLocked: Boolean = false
         private set
 
-    /** 上次按 Shift 的时间戳（用于检测双击）。*/
-    private var lastShiftTime: Long = 0L
-
-    /** 拼音编辑串。*/
     private val composingBuilder = StringBuilder()
     val composing: String get() = composingBuilder.toString()
 
-    /** 当前候选列表。*/
     var candidates: List<String> = emptyList()
         private set
+
+    private var lastKey: Char? = null
+    private var keyPressCount: Int = 0
+    private var lastPressTime: Long = 0
+
+    private var lastChar: Char? = null
+
+    // 数字键盘连按时，上一次已提交到编辑器的字符数（含双向控制符），用于替换而非追加
+    private var lastEmittedLength: Int = 0
 
     fun getRows(): List<KeyboardRow> = when (currentLanguage) {
         Language.KYRGYZ -> when (currentLayout) {
             LayoutType.DEFAULT -> KyrgyzKeyboardLayouts.forType(LayoutType.DEFAULT, kyrgyzShift)
-            LayoutType.SYMBOL -> KyrgyzKeyboardLayouts.SymbolLayout
+            LayoutType.DIGITAL -> KyrgyzKeyboardLayouts.forType(LayoutType.DIGITAL)
+            LayoutType.SYMBOL -> KyrgyzKeyboardLayouts.forType(LayoutType.SYMBOL)
         }
         Language.ENGLISH -> when (currentLayout) {
             LayoutType.DEFAULT -> EnglishKeyboardLayouts.letterLayout(englishShift)
-            LayoutType.SYMBOL -> KyrgyzKeyboardLayouts.SymbolLayout
+            LayoutType.SYMBOL -> KyrgyzKeyboardLayouts.forType(LayoutType.SYMBOL)
+            else -> EnglishKeyboardLayouts.letterLayout(englishShift)
         }
         Language.PINYIN -> when (currentLayout) {
             LayoutType.DEFAULT -> PinyinKeyboardLayouts.layout
-            LayoutType.SYMBOL -> KyrgyzKeyboardLayouts.SymbolLayout
+            LayoutType.SYMBOL -> KyrgyzKeyboardLayouts.forType(LayoutType.SYMBOL)
+            else -> PinyinKeyboardLayouts.layout
         }
     }
 
     fun switchLayout() {
         currentLayout = when (currentLayout) {
-            LayoutType.DEFAULT -> LayoutType.SYMBOL
+            LayoutType.DEFAULT -> LayoutType.DIGITAL
+            LayoutType.DIGITAL -> LayoutType.SYMBOL
             LayoutType.SYMBOL -> LayoutType.DEFAULT
         }
         kyrgyzShift = false
         shiftLocked = false
+        clearComposing()
+        resetKeyPressCounter()
     }
 
-    /** 循环切换语言。切换时清空拼音编辑串。*/
+    fun switchToDigital() {
+        if (currentLayout != LayoutType.DIGITAL) {
+            currentLayout = LayoutType.DIGITAL
+            kyrgyzShift = false
+            shiftLocked = false
+            clearComposing()
+            resetKeyPressCounter()
+        } else {
+            currentLayout = LayoutType.DEFAULT
+        }
+    }
+
     fun switchLanguage() {
         clearComposing()
+        resetKeyPressCounter()
         currentLanguage = currentLanguage.next()
         currentLayout = LayoutType.DEFAULT
         englishShift = false
@@ -82,14 +96,19 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
         shiftLocked = false
     }
 
-    /** 处理按键。返回 true 表示已消费。*/
     fun handleKey(key: KyrgyzKey): Boolean {
         return when (key.type) {
             KeyType.LETTER -> handleLetter(key)
+            KeyType.DIGITAL -> handleDigitalKey(key)
             KeyType.SYMBOL -> {
                 commitComposing()
-                if (key.code.isNotEmpty()) listener.onKeyPress(key.code)
+                if (key.code.isNotEmpty()) {
+                    val withBidi = addBidiIfNeeded(key.code[0])
+                    listener.onKeyPress(withBidi)
+                    lastChar = key.code[0]
+                }
                 autoCancelShift()
+                resetKeyPressCounter()
                 true
             }
             KeyType.FUNCTION -> {
@@ -104,17 +123,64 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
         val code = key.code
         if (currentLanguage == Language.PINYIN && code.length == 1 && code[0] in 'a'..'z') {
             composingBuilder.append(code)
-            updateCandidates()
+            updatePinyinCandidates()
             listener.onComposingChanged(composing)
             return true
         }
         if (code.isNotEmpty()) {
+            val withBidi = addBidiIfNeeded(code[0])
             val out = if (currentLanguage == Language.ENGLISH && englishShift) {
-                code.uppercase().also { if (!shiftLocked) englishShift = false }
-            } else code
+                withBidi.uppercase().also { if (!shiftLocked) englishShift = false }
+            } else withBidi
             listener.onKeyPress(out)
+            lastChar = code[0]
         }
         autoCancelShift()
+        return true
+    }
+
+    /**
+     * 处理数字键盘按键（GB/T 31921-2015 标准）。
+     * 点击：输出数字
+     * 500ms 内连按：循环切换输出该键 symbols 列表中的所有字符
+     * 长按：输出第一个字母
+     */
+    private fun handleDigitalKey(key: KyrgyzKey): Boolean {
+        val digit = key.label[0]
+        val now = System.currentTimeMillis()
+        val timeSinceLastPress = now - lastPressTime
+
+        // 500ms 内连按同一个键：在“数字本身 + 各变体字符”之间循环替换
+        if (digit == lastKey && timeSinceLastPress < 500 && key.variants.isNotEmpty()) {
+            // 先删除上一次已提交的输出（含可能插入的双向控制符），实现原地替换
+            if (lastEmittedLength > 0) {
+                listener.onDeleteBeforeCursor(lastEmittedLength)
+            }
+            // 循环序列长度 = 数字(1) + 变体个数；0 表示数字本身
+            keyPressCount = (keyPressCount + 1) % (key.variants.size + 1)
+            val emitted: String = if (keyPressCount == 0) {
+                lastChar = digit
+                digit.toString()
+            } else {
+                val nextChar = key.variants[keyPressCount - 1]
+                lastChar = nextChar[0]
+                addBidiIfNeeded(nextChar[0])
+            }
+            listener.onKeyPress(emitted)
+            lastEmittedLength = emitted.length
+        } else {
+            // 首次点击或超时：提交上一段并输出数字本身
+            commitComposing()
+            val emitted = digit.toString()
+            listener.onKeyPress(emitted)
+            keyPressCount = 0
+            lastChar = digit
+            lastEmittedLength = emitted.length
+        }
+
+        lastKey = digit
+        lastPressTime = now
+
         return true
     }
 
@@ -124,27 +190,28 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
                 commitComposing()
                 switchLayout()
             }
+            FunctionType.SWITCH_DIGITAL -> {
+                commitComposing()
+                switchToDigital()
+            }
             FunctionType.SWITCH_LANGUAGE -> {
                 switchLanguage()
             }
             FunctionType.SHIFT -> {
                 val now = System.currentTimeMillis()
-                val isDoubleClick = (now - lastShiftTime) < 300L
+                val isDoubleClick = (now - lastPressTime) < 300L
 
-                if (currentLanguage == Language.KYRGYZ) {
+                if (currentLanguage == Language.KYRGYZ && currentLayout == LayoutType.DEFAULT) {
                     when {
                         isDoubleClick -> {
-                            // 双击：锁定 Shift
                             kyrgyzShift = true
                             shiftLocked = true
                         }
                         kyrgyzShift && shiftLocked -> {
-                            // 已锁定时按 Shift：解锁并取消
                             kyrgyzShift = false
                             shiftLocked = false
                         }
                         else -> {
-                            // 单次按 Shift：切换状态，不锁定
                             kyrgyzShift = !kyrgyzShift
                             shiftLocked = false
                         }
@@ -165,37 +232,41 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
                         }
                     }
                 }
-                lastShiftTime = now
+                lastPressTime = now
             }
             FunctionType.BACKSPACE -> {
-                if (currentLanguage == Language.PINYIN && composingBuilder.isNotEmpty()) {
+                if (composingBuilder.isNotEmpty()) {
                     composingBuilder.deleteCharAt(composingBuilder.length - 1)
-                    updateCandidates()
+                    if (currentLanguage == Language.PINYIN) {
+                        updatePinyinCandidates()
+                    } else if (currentLayout == LayoutType.DIGITAL) {
+                        updateT9Candidates()
+                    }
                     listener.onComposingChanged(composing)
                     return
                 }
                 listener.onKeyAction(FunctionType.BACKSPACE)
                 autoCancelShift()
+                lastChar = null
             }
             FunctionType.SPACE -> {
-                if (currentLanguage == Language.PINYIN && candidates.isNotEmpty()) {
+                if ((currentLanguage == Language.PINYIN || currentLayout == LayoutType.DIGITAL) && candidates.isNotEmpty()) {
                     selectCandidate(0)
                     return
                 }
-                if (currentLanguage == Language.PINYIN && composingBuilder.isNotEmpty()) {
-                    // 无候选时空格直接上屏拼音串本身
-                    listener.onCommitCandidate(composing)
-                    composingBuilder.clear()
-                    candidates = emptyList()
-                    listener.onComposingChanged("")
+                if (composingBuilder.isNotEmpty()) {
+                    commitComposing()
                     return
                 }
                 listener.onKeyAction(FunctionType.SPACE)
+                lastChar = ' '
                 autoCancelShift()
+                resetKeyPressCounter()
             }
             FunctionType.NEWLINE -> {
                 commitComposing()
                 listener.onKeyAction(FunctionType.NEWLINE)
+                lastChar = '\n'
                 autoCancelShift()
             }
             else -> {
@@ -205,9 +276,8 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
         }
     }
 
-    /** 非锁定模式下，输完一个字符自动取消 Shift。*/
     private fun autoCancelShift() {
-        if (!shiftLocked) {
+        if (!shiftLocked && currentLayout != LayoutType.DIGITAL) {
             when (currentLanguage) {
                 Language.KYRGYZ -> kyrgyzShift = false
                 Language.ENGLISH -> englishShift = false
@@ -222,20 +292,53 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
         composingBuilder.clear()
         candidates = emptyList()
         listener.onCommitCandidate(chosen)
+        resetKeyPressCounter()
+        if (chosen.isNotEmpty()) {
+            lastChar = chosen.last()
+        }
     }
 
-    /** 长按变体：直接上屏，若在拼音模式则先 commit 现有 composing。*/
     fun handleVariant(variant: String): Boolean {
         if (variant.isEmpty()) return false
         commitComposing()
-        listener.onKeyPress(variant)
+        val withBidi = addBidiIfNeeded(variant[0])
+        listener.onKeyPress(withBidi)
+        lastChar = variant[0]
         autoCancelShift()
         return true
     }
 
-    private fun updateCandidates() {
+    /**
+     * 长按数字键：直接输出 symbols 列表中的第一个字符。
+     */
+    fun handleDigitalLongPress(key: KyrgyzKey): Boolean {
+        if (key.type != KeyType.DIGITAL || key.variants.isEmpty()) return false
+        val firstChar = key.variants[0]
+        commitComposing()
+        val withBidi = addBidiIfNeeded(firstChar[0])
+        listener.onKeyPress(withBidi)
+        lastChar = firstChar[0]
+        return true
+    }
+
+    private fun updatePinyinCandidates() {
         candidates = if (composingBuilder.isEmpty()) emptyList()
         else PinyinDictionary.query(composingBuilder.toString())
+    }
+
+    private fun updateT9Candidates() {
+        if (composingBuilder.isEmpty()) {
+            candidates = emptyList()
+            return
+        }
+        val digitSequence = StringBuilder()
+        for (char in composingBuilder) {
+            val digit = T9Engine.getKeyForLetter(char)
+            if (digit != null) {
+                digitSequence.append(digit)
+            }
+        }
+        candidates = T9Engine.getCandidates(digitSequence.toString())
     }
 
     private fun commitComposing() {
@@ -244,7 +347,11 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
             composingBuilder.clear()
             candidates = emptyList()
             listener.onCommitCandidate(text)
+            if (text.isNotEmpty()) {
+                lastChar = text.last()
+            }
         }
+        resetKeyPressCounter()
     }
 
     private fun clearComposing() {
@@ -253,5 +360,29 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
             candidates = emptyList()
             listener.onComposingChanged("")
         }
+    }
+
+    private fun resetKeyPressCounter() {
+        lastKey = null
+        keyPressCount = 0
+        lastPressTime = 0
+        lastEmittedLength = 0
+    }
+
+    /**
+     * GB/T 32412-2015 双向控制符自动插入
+     */
+    private fun addBidiIfNeeded(nextChar: Char): String {
+        if (lastChar == null) return nextChar.toString()
+        
+        if (BidiControls.needsRlmAfter(lastChar.toString(), nextChar)) {
+            return BidiControls.RLM + nextChar
+        }
+        
+        if (BidiControls.needsLrmBefore(lastChar.toString(), nextChar)) {
+            return BidiControls.LRM + nextChar
+        }
+        
+        return nextChar.toString()
     }
 }
