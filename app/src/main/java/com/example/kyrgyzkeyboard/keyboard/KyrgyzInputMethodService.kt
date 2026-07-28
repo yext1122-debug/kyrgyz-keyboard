@@ -74,7 +74,6 @@ class KyrgyzInputMethodService :
     private var layoutState = mutableStateOf(LayoutType.DEFAULT)
     private var kyrgyzShiftState = mutableStateOf(false)
     private var englishShiftState = mutableStateOf(false)
-    private var shiftLockedState = mutableStateOf(false)
     private var composingState = mutableStateOf("")
     private var candidatesState = mutableStateOf<List<String>>(emptyList())
 
@@ -110,7 +109,6 @@ class KyrgyzInputMethodService :
                     layout = layoutState.value,
                     kyrgyzShift = kyrgyzShiftState.value,
                     englishShift = englishShiftState.value,
-                    shiftLocked = shiftLockedState.value,
                     composing = composingState.value,
                     candidates = candidatesState.value,
                     onStateChanged = { syncStateFromEngine() }
@@ -130,7 +128,6 @@ class KyrgyzInputMethodService :
         layoutState.value = engine.currentLayout
         kyrgyzShiftState.value = engine.kyrgyzShift
         englishShiftState.value = engine.englishShift
-        shiftLockedState.value = engine.shiftLocked
         composingState.value = engine.composing
         candidatesState.value = engine.candidates
     }
@@ -198,13 +195,10 @@ private fun KeyboardRoot(
     layout: LayoutType,
     kyrgyzShift: Boolean,
     englishShift: Boolean,
-    shiftLocked: Boolean,
     composing: String,
     candidates: List<String>,
     onStateChanged: () -> Unit
 ) {
-    val isKyrgyz = language == Language.KYRGYZ
-    val activeShift = if (isKyrgyz) kyrgyzShift else englishShift
     val rows = remember(language, layout, kyrgyzShift, englishShift) { engine.getRows() }
     val isRtl = language == Language.KYRGYZ
     val direction = if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
