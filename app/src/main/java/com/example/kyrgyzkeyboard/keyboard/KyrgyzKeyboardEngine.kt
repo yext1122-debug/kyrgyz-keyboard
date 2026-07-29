@@ -57,11 +57,13 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
         }
         Language.ENGLISH -> when (currentLayout) {
             LayoutType.DEFAULT -> EnglishKeyboardLayouts.letterLayout(englishShift)
+            LayoutType.DIGITAL -> KyrgyzKeyboardLayouts.forType(LayoutType.DIGITAL)
             LayoutType.SYMBOL -> KyrgyzKeyboardLayouts.forType(LayoutType.SYMBOL)
             else -> EnglishKeyboardLayouts.letterLayout(englishShift)
         }
         Language.PINYIN -> when (currentLayout) {
             LayoutType.DEFAULT -> PinyinKeyboardLayouts.layout
+            LayoutType.DIGITAL -> KyrgyzKeyboardLayouts.forType(LayoutType.DIGITAL)
             LayoutType.SYMBOL -> KyrgyzKeyboardLayouts.forType(LayoutType.SYMBOL)
             else -> PinyinKeyboardLayouts.layout
         }
