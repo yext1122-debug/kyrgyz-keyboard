@@ -441,21 +441,29 @@ private fun DigitalKeyView(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.tertiaryContainer)
-            .then(clickModifier)
+            .then(clickModifier),
+        contentAlignment = Alignment.Center
     ) {
-        // 数字标签（右上角小字体）
-        Text(
-            text = keyData.label,
-            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.5f),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 2.dp, end = 4.dp)
-        )
-
-        // 字母提示（中间）
-        if (keyData.variants.isNotEmpty()) {
+        if (keyData.variants.isEmpty()) {
+            // 纯数字键：数字居中大号显示
+            Text(
+                text = keyData.label,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center
+            )
+        } else {
+            // 存档九宫格键：数字右上角 + 字母居中
+            Text(
+                text = keyData.label,
+                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.5f),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 2.dp, end = 4.dp)
+            )
             Row(
                 modifier = Modifier
                     .align(Alignment.Center)

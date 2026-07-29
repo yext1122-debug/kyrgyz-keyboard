@@ -111,10 +111,11 @@ object KyrgyzKeyboardLayouts {
     )
 
     /**
-     * 九宫格数字键盘布局（GB/T 31921-2015 标准）。
-     * 增加顶部快捷功能栏。
+     * 【已存档】原九宫格连按循环布局：连按同一键在数字与柯语字母之间循环。
+     * 因体验问题暂时下线，保留完整代码以便后续完善后重新启用。
+     * 当前未接入任何切换路径（forType 不再返回本布局）。
      */
-    val DigitalLayout: List<KeyboardRow> = listOf(
+    val ArchivedKyrgyzNineGridLayout: List<KeyboardRow> = listOf(
         // ==================== 顶部快捷功能栏（新增）====================
         KeyboardRow(listOf(
             KyrgyzKey.switchLayout("字母"), // 切换回字母键盘
@@ -151,6 +152,44 @@ object KyrgyzKeyboardLayouts {
         )),
         // Row 5 (底部功能键)
         KeyboardRow(listOf(
+            KyrgyzKey.switchLayout("符号"),
+            KyrgyzKey.space(),
+            KyrgyzKey.newline()
+        ))
+    )
+
+    /**
+     * 纯数字九键布局：仅输出阿拉伯数字与小数点，无连按循环、无柯语字母联想。
+     * 供用户在需要输入数字时快速选择。
+     */
+    val DigitalLayout: List<KeyboardRow> = listOf(
+        // Row 1 (1, 2, 3)
+        KeyboardRow(listOf(
+            KyrgyzKey.digitalKey(label = "1", symbols = emptyList()),
+            KyrgyzKey.digitalKey(label = "2", symbols = emptyList()),
+            KyrgyzKey.digitalKey(label = "3", symbols = emptyList())
+        )),
+        // Row 2 (4, 5, 6)
+        KeyboardRow(listOf(
+            KyrgyzKey.digitalKey(label = "4", symbols = emptyList()),
+            KyrgyzKey.digitalKey(label = "5", symbols = emptyList()),
+            KyrgyzKey.digitalKey(label = "6", symbols = emptyList())
+        )),
+        // Row 3 (7, 8, 9)
+        KeyboardRow(listOf(
+            KyrgyzKey.digitalKey(label = "7", symbols = emptyList()),
+            KyrgyzKey.digitalKey(label = "8", symbols = emptyList()),
+            KyrgyzKey.digitalKey(label = "9", symbols = emptyList())
+        )),
+        // Row 4 (小数点, 0, 退格)
+        KeyboardRow(listOf(
+            KyrgyzKey.digitalKey(label = ".", symbols = emptyList()),
+            KyrgyzKey.digitalKey(label = "0", symbols = emptyList()),
+            KyrgyzKey.backspace()
+        )),
+        // Row 5 (功能键：字母 / 符号 / 空格 / 换行)
+        KeyboardRow(listOf(
+            KyrgyzKey.switchDigital("字母"),
             KyrgyzKey.switchLayout("符号"),
             KyrgyzKey.space(),
             KyrgyzKey.newline()
