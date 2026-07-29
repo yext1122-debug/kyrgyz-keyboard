@@ -4,10 +4,8 @@ package com.example.kyrgyzkeyboard.keyboard
 
 import android.inputmethodservice.InputMethodService
 import android.view.View
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,8 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -255,20 +251,28 @@ private fun KeyboardRoot(
                 }
                 val onKey: (KyrgyzKey) -> Unit = remember(engine, onStateChanged) {
                     { k ->
-                        onFeedback()
                         engine.handleKey(k)
                         onStateChanged()
                     }
                 }
+                val onVariant: (String) -> Unit = remember(engine, onStateChanged) {
+                    { v ->
+                        engine.handleVariant(v)
+                        onStateChanged()
+                    }
+                }
+                val shiftActive = if (language == Language.KYRGYZ) kyrgyzShift else englishShift
                 rows.forEachIndexed { rowIndex, row ->
                     key(language, layout, kyrgyzShift, englishShift, rowIndex) {
                         KeyboardRowView(
                             row = row,
+                            fontSize = keyFontSize,
+                            shiftActive = shiftActive,
+                            shiftLocked = engine.shiftLocked,
                             onKey = onKey,
-                            engine = engine,
-                            keyFontSize = keyFontSize,
+                            onVariant = onVariant,
                             onFeedback = onFeedback,
-                            onStateChanged = onStateChanged
+                            rowHeight = 50
                         )
                     }
                 }
@@ -330,188 +334,6 @@ private fun CandidateBar(
                             fontSize = 20.sp
                         )
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun KeyboardRowView(
-    row: KeyboardRow,
-    onKey: (KyrgyzKey) -> Unit,
-    engine: KyrgyzKeyboardEngine,
-    keyFontSize: Float,
-    onFeedback: () -> Unit,
-    onStateChanged: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        row.keys.forEachIndexed { index, k ->
-            key(index, k.code, k.function) {
-                KeyView(
-                    keyData = k,
-                    engine = engine,
-                    keyFontSize = keyFontSize,
-                    onFeedback = onFeedback,
-                    onStateChanged = onStateChanged,
-                    modifier = Modifier.weight(k.weight),
-                    onKey = onKey
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun KeyView(
-    keyData: KyrgyzKey,
-    engine: KyrgyzKeyboardEngine,
-    keyFontSize: Float,
-    onFeedback: () -> Unit,
-    onStateChanged: () -> Unit,
-    modifier: Modifier = Modifier,
-    onKey: (KyrgyzKey) -> Unit
-) {
-    val isShift = keyData.function == FunctionType.SHIFT
-    val isDigital = keyData.type == KeyType.DIGITAL
-    val shiftLocked = engine.shiftLocked
-    val shiftActive = if (engine.currentLanguage == Language.KYRGYZ) engine.kyrgyzShift else engine.englishShift
-
-    if (isDigital) {
-        DigitalKeyView(
-            keyData = keyData,
-            engine = engine,
-            keyFontSize = keyFontSize,
-            onFeedback = onFeedback,
-            onStateChanged = onStateChanged,
-            modifier = modifier,
-            onKey = onKey
-        )
-        return
-    }
-
-    val bg = when {
-        isShift && shiftLocked -> MaterialTheme.colorScheme.primary
-        isShift && shiftActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-        keyData.type == KeyType.FUNCTION -> MaterialTheme.colorScheme.secondaryContainer
-        keyData.type == KeyType.SYMBOL -> MaterialTheme.colorScheme.surfaceVariant
-        keyData.type == KeyType.LETTER -> MaterialTheme.colorScheme.primaryContainer
-        else -> MaterialTheme.colorScheme.primaryContainer
-    }
-    val fg = when {
-        isShift && (shiftActive || shiftLocked) -> MaterialTheme.colorScheme.onPrimary
-        keyData.type == KeyType.FUNCTION -> MaterialTheme.colorScheme.onSecondaryContainer
-        keyData.type == KeyType.SYMBOL -> MaterialTheme.colorScheme.onSurfaceVariant
-        keyData.type == KeyType.LETTER -> MaterialTheme.colorScheme.onPrimaryContainer
-        else -> MaterialTheme.colorScheme.onPrimaryContainer
-    }
-    val weight = if (isShift && shiftLocked) FontWeight.Bold else FontWeight.Normal
-    val hasVariants = keyData.variants.isNotEmpty()
-    val clickModifier = if (hasVariants) {
-        Modifier.combinedClickable(
-            onClick = { onKey(keyData) },
-            onLongClick = {
-                keyData.variants.firstOrNull()?.let {
-                    onFeedback()
-                    engine.handleVariant(it)
-                    onStateChanged()
-                }
-            }
-        )
-    } else {
-        Modifier.clickable { onKey(keyData) }
-    }
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(bg)
-            .then(clickModifier),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = keyData.label,
-            color = fg,
-            fontSize = keyFontSize.sp,
-            fontWeight = weight,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-/**
- * 九宫格数字键视图（GB/T 31921-2015 标准）。
- */
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun DigitalKeyView(
-    keyData: KyrgyzKey,
-    engine: KyrgyzKeyboardEngine,
-    keyFontSize: Float,
-    onFeedback: () -> Unit,
-    onStateChanged: () -> Unit,
-    modifier: Modifier = Modifier,
-    onKey: (KyrgyzKey) -> Unit
-) {
-    val clickModifier = Modifier.combinedClickable(
-        onClick = {
-            onKey(keyData)
-            onStateChanged()
-        },
-        onLongClick = {
-            onFeedback()
-            engine.handleDigitalLongPress(keyData)
-            onStateChanged()
-        }
-    )
-
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.tertiaryContainer)
-            .then(clickModifier),
-        contentAlignment = Alignment.Center
-    ) {
-        if (keyData.variants.isEmpty()) {
-            // 纯数字键：数字居中大号显示（跟随字号设置，略大于字母键）
-            Text(
-                text = keyData.label,
-                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                fontSize = (keyFontSize + 2f).sp,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center
-            )
-        } else {
-            // 存档九宫格键：数字右上角 + 字母居中
-            Text(
-                text = keyData.label,
-                color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.5f),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 2.dp, end = 4.dp)
-            )
-            Row(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(top = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(1.dp)
-            ) {
-                keyData.variants.take(4).forEachIndexed { i, char ->
-                    Text(
-                        text = char,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(
-                            alpha = if (i == 0) 1.0f else 0.6f
-                        ),
-                        fontSize = if (i == 0) 16.sp else 13.sp,
-                        textAlign = TextAlign.Center
-                    )
                 }
             }
         }
