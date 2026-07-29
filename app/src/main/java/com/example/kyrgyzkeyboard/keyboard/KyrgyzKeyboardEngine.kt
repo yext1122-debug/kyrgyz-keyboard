@@ -1,5 +1,4 @@
-// Modified for tri-language support: 柯语 / 英文 / 中文拼音
-// Updated: v1.2.4 修复 1 键和 0 键无法输出数字的问题
+﻿// Modified for tri-language support: 柯语 / 英文 / 中文拼音
 package com.example.kyrgyzkeyboard.keyboard
 
 import com.example.kyrgyzkeyboard.utils.BidiControls

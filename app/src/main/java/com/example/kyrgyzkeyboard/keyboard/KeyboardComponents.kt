@@ -56,7 +56,8 @@ fun KeyboardRowView(
     onVariant: (String) -> Unit,
     onFeedback: () -> Unit,
     modifier: Modifier = Modifier,
-    rowHeight: Int = 52
+    rowHeight: Int = 52,
+    enterLabel: String? = null
 ) {
     Row(
         modifier = modifier
@@ -74,7 +75,8 @@ fun KeyboardRowView(
                     onKey = onKey,
                     onVariant = onVariant,
                     onFeedback = onFeedback,
-                    modifier = Modifier.weight(k.weight)
+                    modifier = Modifier.weight(k.weight),
+                    enterLabel = enterLabel
                 )
             }
         }
@@ -91,7 +93,8 @@ fun KeyboardKeyView(
     onKey: (KyrgyzKey) -> Unit,
     onVariant: (String) -> Unit,
     onFeedback: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enterLabel: String? = null
 ) {
     val isShift = keyData.function == FunctionType.SHIFT
     val isDigital = keyData.type == KeyType.DIGITAL
@@ -179,8 +182,14 @@ fun KeyboardKeyView(
         } else {
             // 纯数字键略大于字母键；字母/功能/符号键跟随字号
             val labelSize = if (isDigital) fontSize + 2f else fontSize
+            val displayLabel =
+                if (keyData.function == FunctionType.NEWLINE && enterLabel != null) {
+                    enterLabel
+                } else {
+                    keyData.label
+                }
             Text(
-                text = keyData.label,
+                text = displayLabel,
                 color = contentColor,
                 fontSize = labelSize.sp,
                 fontWeight = fontWeight,
