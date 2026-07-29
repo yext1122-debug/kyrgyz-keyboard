@@ -17,9 +17,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Divider
-import androidx.compose.material3.DismissDirection
-import androidx.compose.material3.DismissValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -28,10 +27,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
-import androidx.compose.material3.SwipeToDismiss
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDismissState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,9 +48,11 @@ import com.example.kyrgyzkeyboard.data.model.WordEntity
 /**
  * 词库管理页（与键盘联想同源：Room）。
  *
- * - 顶部：标题栏 + 搜索框 + 词条计数 + 分类筛选 Chip
+ * - 顶部：标题栏（含「多选」入口）+ 搜索框 + 词条计数 + 分类筛选 Chip
  * - 主体：LazyColumn 展示词条（词形 / 释义 / 频次 / 内置·自学习标签）
- * - 交互：滑动删除、点按编辑、FAB 新增、空态与搜索无结果文案
+ * - 交互：
+ *   - 普通模式：点按编辑（编辑对话框内含删除），FAB 新增
+ *   - 多选模式：行首多选框，支持全选 / 取消全选 / 删除选中
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,19 +62,81 @@ fun DictionaryScreen(viewModel: DictionaryViewModel) {
     val total by viewModel.totalCount.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
+    val isMultiSelectMode by viewModel.isMultiSelectMode.collectAsState()
+    val selectedIds by viewModel.selectedIds.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<WordEntity?>(null) }
+    var showDeleteSelectedDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(text = stringResource(id = R.string.dictionary_title)) }
-            )
+            if (isMultiSelectMode) {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            text = stringResource(
+                                id = R.string.dictionary_selected_count,
+                                selectedIds.size
+                            )
+                        )
+                    },
+                    navigationIcon = {
+                        TextButton(onClick = { viewModel.toggleMultiSelectMode() }) {
+                            Text(text = stringResource(id = R.string.dictionary_cancel_multi_select))
+                        }
+                    },
+                    actions = {
+                        val allSelected = total > 0 && selectedIds.size >= total
+                        TextButton(
+                            onClick = {
+                                if (allSelected) viewModel.deselectAll() else viewModel.selectAll()
+                            }
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    id = if (allSelected) {
+                                        R.string.dictionary_deselect_all
+                                    } else {
+                                        R.string.dictionary_select_all
+                                    }
+                                )
+                            )
+                        }
+                        TextButton(
+                            enabled = selectedIds.isNotEmpty(),
+                            onClick = { showDeleteSelectedDialog = true }
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.dictionary_delete_selected),
+                                color = if (selectedIds.isNotEmpty()) {
+                                    Color(0xFFB00020)
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                        }
+                    }
+                )
+            } else {
+                CenterAlignedTopAppBar(
+                    title = { Text(text = stringResource(id = R.string.dictionary_title)) },
+                    actions = {
+                        TextButton(
+                            enabled = total > 0,
+                            onClick = { viewModel.toggleMultiSelectMode() }
+                        ) {
+                            Text(text = stringResource(id = R.string.dictionary_multi_select))
+                        }
+                    }
+                )
+            }
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
-                Text(text = "＋", fontSize = 22.sp)
+            if (!isMultiSelectMode) {
+                FloatingActionButton(onClick = { showAddDialog = true }) {
+                    Text(text = "＋", fontSize = 22.sp)
+                }
             }
         }
     ) { padding ->
@@ -131,10 +192,17 @@ fun DictionaryScreen(viewModel: DictionaryViewModel) {
                 items.isEmpty() -> EmptyState(text = stringResource(id = R.string.dictionary_no_result))
                 else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(items = items, key = { it.id }) { entity ->
-                        DismissibleRow(
+                        WordRow(
                             word = entity,
-                            onDelete = { viewModel.deleteWord(entity.id) },
-                            onEdit = { editing = entity }
+                            multiSelect = isMultiSelectMode,
+                            selected = selectedIds.contains(entity.id),
+                            onClick = {
+                                if (isMultiSelectMode) {
+                                    viewModel.toggleSelection(entity.id)
+                                } else {
+                                    editing = entity
+                                }
+                            }
                         )
                         Divider()
                     }
@@ -150,7 +218,8 @@ fun DictionaryScreen(viewModel: DictionaryViewModel) {
             onConfirm = { new ->
                 viewModel.addWord(new)
                 showAddDialog = false
-            }
+            },
+            onDelete = null
         )
     }
 
@@ -161,6 +230,41 @@ fun DictionaryScreen(viewModel: DictionaryViewModel) {
             onConfirm = { updated ->
                 viewModel.updateWord(updated.copy(id = current.id, frequency = current.frequency))
                 editing = null
+            },
+            onDelete = {
+                viewModel.deleteWord(current.id)
+                editing = null
+            }
+        )
+    }
+
+    if (showDeleteSelectedDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteSelectedDialog = false },
+            title = { Text(text = stringResource(id = R.string.dictionary_delete_selected)) },
+            text = {
+                Text(
+                    text = stringResource(
+                        id = R.string.dictionary_delete_selected_confirm,
+                        selectedIds.size
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteSelected()
+                    showDeleteSelectedDialog = false
+                }) {
+                    Text(
+                        text = stringResource(id = R.string.dictionary_delete),
+                        color = Color(0xFFB00020)
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteSelectedDialog = false }) {
+                    Text(text = stringResource(id = R.string.delete_confirm_cancel))
+                }
             }
         )
     }
@@ -168,53 +272,27 @@ fun DictionaryScreen(viewModel: DictionaryViewModel) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DismissibleRow(
+private fun WordRow(
     word: WordEntity,
-    onDelete: () -> Unit,
-    onEdit: () -> Unit
+    multiSelect: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit
 ) {
-    val state = rememberDismissState(
-        confirmValueChange = { value ->
-            if (value == DismissValue.DismissedToStart || value == DismissValue.DismissedToEnd) {
-                onDelete()
-                true
-            } else false
-        }
-    )
-    SwipeToDismiss(
-        state = state,
-        directions = setOf(DismissDirection.EndToStart, DismissDirection.StartToEnd),
-        background = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 64.dp)
-                    .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                Text(
-                    text = "✕",
-                    color = Color(0xFFB00020),
-                    fontSize = 20.sp
-                )
-            }
-        },
-        dismissContent = { WordRow(word = word, onEdit = onEdit) }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun WordRow(word: WordEntity, onEdit: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .clickable { onEdit() }
+            .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        if (multiSelect) {
+            Checkbox(
+                checked = selected,
+                onCheckedChange = { onClick() }
+            )
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = word.word,
@@ -229,7 +307,10 @@ private fun WordRow(word: WordEntity, onEdit: () -> Unit) {
                 )
             }
         }
-        Column(horizontalAlignment = Alignment.End) {
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
             SuggestionChip(
                 onClick = {},
                 enabled = false,
@@ -266,7 +347,8 @@ private fun EmptyState(text: String) {
 private fun WordDialog(
     initial: WordEntity?,
     onDismiss: () -> Unit,
-    onConfirm: (WordEntity) -> Unit
+    onConfirm: (WordEntity) -> Unit,
+    onDelete: (() -> Unit)?
 ) {
     var word by remember { mutableStateOf(initial?.word.orEmpty()) }
     var pinyin by remember { mutableStateOf(initial?.pinyin.orEmpty()) }
@@ -304,6 +386,17 @@ private fun WordDialog(
                     label = { Text(text = "分类") },
                     singleLine = true
                 )
+                if (onDelete != null) {
+                    TextButton(
+                        onClick = onDelete,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.dictionary_delete),
+                            color = Color(0xFFB00020)
+                        )
+                    }
+                }
             }
         },
         confirmButton = {

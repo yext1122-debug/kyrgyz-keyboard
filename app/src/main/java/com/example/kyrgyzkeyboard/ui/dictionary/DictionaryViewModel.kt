@@ -39,6 +39,13 @@ class DictionaryViewModel @Inject constructor(
     private val _words = MutableStateFlow<List<WordEntity>>(emptyList())
     val words: StateFlow<List<WordEntity>> = _words.asStateFlow()
 
+    // ===== 多选状态 =====
+    private val _isMultiSelectMode = MutableStateFlow(false)
+    val isMultiSelectMode: StateFlow<Boolean> = _isMultiSelectMode.asStateFlow()
+
+    private val _selectedIds = MutableStateFlow<Set<Long>>(emptySet())
+    val selectedIds: StateFlow<Set<Long>> = _selectedIds.asStateFlow()
+
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
@@ -82,6 +89,37 @@ class DictionaryViewModel @Inject constructor(
 
     fun selectCategory(category: String?) {
         _selectedCategory.value = category
+    }
+
+    fun toggleMultiSelectMode() {
+        val newMode = !_isMultiSelectMode.value
+        _isMultiSelectMode.value = newMode
+        if (!newMode) _selectedIds.value = emptySet()
+    }
+
+    fun toggleSelection(id: Long) {
+        val current = _selectedIds.value.toMutableSet()
+        if (current.contains(id)) current.remove(id) else current.add(id)
+        _selectedIds.value = current
+    }
+
+    fun selectAll() {
+        _selectedIds.value = _words.value.map { it.id }.toSet()
+    }
+
+    fun deselectAll() {
+        _selectedIds.value = emptySet()
+    }
+
+    fun deleteSelected() {
+        val ids = _selectedIds.value.toList()
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            repository.deleteWords(ids)
+            _isMultiSelectMode.value = false
+            _selectedIds.value = emptySet()
+            refresh()
+        }
     }
 
     fun addWord(word: WordEntity) {

@@ -52,6 +52,11 @@ class DictionaryRepository(private val dao: DictionaryDao) {
     /** 按 id 删除。 */
     suspend fun deleteWord(id: Long) = dao.delete(id)
 
+    /** 按 id 批量删除（多选删除用）。 */
+    suspend fun deleteWords(ids: List<Long>) {
+        if (ids.isNotEmpty()) dao.deleteAll(ids)
+    }
+
     /** 记录一次使用（频次 +1）。 */
     suspend fun recordUsage(id: Long) = dao.incrementFrequency(id)
 }

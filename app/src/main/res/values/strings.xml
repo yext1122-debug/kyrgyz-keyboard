@@ -22,6 +22,14 @@
     <string name="dictionary_category_all">全部</string>
     <string name="dictionary_edit_word">编辑词条</string>
     <string name="dictionary_freq">频次 %1$d</string>
+    <string name="dictionary_multi_select">多选</string>
+    <string name="dictionary_select_all">全选</string>
+    <string name="dictionary_deselect_all">取消全选</string>
+    <string name="dictionary_delete_selected">删除选中</string>
+    <string name="dictionary_selected_count">已选 %1$d 项</string>
+    <string name="dictionary_cancel_multi_select">取消</string>
+    <string name="dictionary_delete">删除</string>
+    <string name="dictionary_delete_selected_confirm">确认删除选中的 %1$d 个词条?</string>
 
     <!-- ===== 键盘功能键 ===== -->
     <string name="space">空格</string>

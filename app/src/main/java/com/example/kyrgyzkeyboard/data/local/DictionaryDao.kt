@@ -52,6 +52,10 @@ interface DictionaryDao {
     @Query("DELETE FROM words WHERE id = :id")
     suspend fun delete(id: Long)
 
+    /** 按主键批量删除（多选删除用）。 */
+    @Query("DELETE FROM words WHERE id IN (:ids)")
+    suspend fun deleteAll(ids: List<Long>)
+
     /** 按主键将 frequency +1。 */
     @Query("UPDATE words SET frequency = frequency + 1 WHERE id = :id")
     suspend fun incrementFrequency(id: Long)
