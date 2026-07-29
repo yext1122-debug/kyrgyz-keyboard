@@ -1,4 +1,4 @@
-﻿package com.example.kyrgyzkeyboard.keyboard
+package com.example.kyrgyzkeyboard.keyboard
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import com.example.kyrgyzkeyboard.ui.theme.KeyboardTokens
 
 /**
  * 共享键盘渲染组件。
@@ -56,14 +57,14 @@ fun KeyboardRowView(
     onVariant: (String) -> Unit,
     onFeedback: () -> Unit,
     modifier: Modifier = Modifier,
-    rowHeight: Int = 52,
+    rowHeight: Int = KeyboardTokens.RowHeight.value.toInt(),
     enterLabel: String? = null
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(rowHeight.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(KeyboardTokens.KeyGap)
     ) {
         row.keys.forEachIndexed { index, k ->
             androidx.compose.runtime.key(index, k.code, k.function) {
@@ -110,7 +111,7 @@ fun KeyboardKeyView(
     val baseBg = when {
         isDigital -> MaterialTheme.colorScheme.tertiaryContainer
         isShift && shiftLocked -> MaterialTheme.colorScheme.primary
-        isShift && shiftActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+        isShift && shiftActive -> MaterialTheme.colorScheme.primary.copy(alpha = KeyboardTokens.ShiftActiveAlpha)
         keyData.type == KeyType.FUNCTION -> MaterialTheme.colorScheme.secondaryContainer
         keyData.type == KeyType.SYMBOL -> MaterialTheme.colorScheme.surfaceVariant
         else -> MaterialTheme.colorScheme.primaryContainer
@@ -123,7 +124,7 @@ fun KeyboardKeyView(
         else -> MaterialTheme.colorScheme.onPrimaryContainer
     }
     // 按下高亮：叠加主色调，并轻微放大
-    val bg = if (pressed) MaterialTheme.colorScheme.primary.copy(alpha = 0.85f) else baseBg
+    val bg = if (pressed) MaterialTheme.colorScheme.primary.copy(alpha = KeyboardTokens.PressedBgAlpha) else baseBg
     val contentColor = if (pressed) MaterialTheme.colorScheme.onPrimary else fg
     val fontWeight = if (isShift && shiftLocked) FontWeight.Bold else FontWeight.Normal
 
@@ -148,7 +149,7 @@ fun KeyboardKeyView(
     Box(
         modifier = modifier
             .scale(if (pressed) 1.06f else 1f)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(KeyboardTokens.KeyCorner))
             .background(bg)
             .then(clickModifier),
         contentAlignment = Alignment.Center
@@ -157,8 +158,8 @@ fun KeyboardKeyView(
             // 九宫格键：数字右上角 + 字母居中（存档布局用）
             Text(
                 text = keyData.label,
-                color = contentColor.copy(alpha = 0.6f),
-                fontSize = 11.sp,
+                color = contentColor.copy(alpha = KeyboardTokens.NineGridSecondaryAlpha),
+                fontSize = KeyboardTokens.NineGridDigitSize,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -173,15 +174,26 @@ fun KeyboardKeyView(
                 keyData.variants.take(4).forEachIndexed { i, char ->
                     Text(
                         text = char,
-                        color = contentColor.copy(alpha = if (i == 0) 1.0f else 0.6f),
-                        fontSize = if (i == 0) 16.sp else 13.sp,
+                        color = contentColor.copy(alpha = if (i == 0) 1.0f else KeyboardTokens.NineGridSecondaryAlpha),
+                        fontSize = if (i == 0) KeyboardTokens.NineGridPrimarySize else KeyboardTokens.NineGridSecondarySize,
                         textAlign = TextAlign.Center
                     )
                 }
             }
         } else {
-            // 纯数字键略大于字母键；字母/功能/符号键跟随字号
-            val labelSize = if (isDigital) fontSize + 2f else fontSize
+            // 字号规则：数字键略大于字母键；功能键统一固定字号（不随用户字号缩放，保证标签风格一致）；字母/符号键跟随用户字号
+            val isFunctionKey = keyData.type == KeyType.FUNCTION
+            val labelSize = when {
+                isDigital -> fontSize + KeyboardTokens.DigitalLabelBoost
+                isFunctionKey -> KeyboardTokens.FunctionLabelSize
+                else -> fontSize
+            }
+            // 功能键统一 Medium 字重；Shift 锁定时加粗
+            val labelWeight = when {
+                isShift && shiftLocked -> FontWeight.Bold
+                isFunctionKey -> FontWeight.Medium
+                else -> fontWeight
+            }
             val displayLabel =
                 if (keyData.function == FunctionType.NEWLINE && enterLabel != null) {
                     enterLabel
@@ -192,7 +204,7 @@ fun KeyboardKeyView(
                 text = displayLabel,
                 color = contentColor,
                 fontSize = labelSize.sp,
-                fontWeight = fontWeight,
+                fontWeight = labelWeight,
                 textAlign = TextAlign.Center
             )
         }
@@ -219,7 +231,7 @@ private fun VariantBubble(
     onPick: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val yOffset = with(LocalDensity.current) { (-58).dp.roundToPx() }
+    val yOffset = with(LocalDensity.current) { KeyboardTokens.BubbleOffsetY.roundToPx() }
     Popup(
         alignment = Alignment.TopCenter,
         offset = IntOffset(0, yOffset),
@@ -228,20 +240,20 @@ private fun VariantBubble(
     ) {
         Surface(
             color = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(10.dp),
+            shape = RoundedCornerShape(KeyboardTokens.BubbleCorner),
             shadowElevation = 6.dp,
             tonalElevation = 3.dp
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(KeyboardTokens.KeyGap),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 variants.forEach { variant ->
                     Box(
                         modifier = Modifier
-                            .height(44.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .height(KeyboardTokens.BubbleKeyHeight)
+                            .clip(RoundedCornerShape(KeyboardTokens.BubbleKeyCorner))
                             .background(MaterialTheme.colorScheme.primaryContainer)
                             .clickable { onPick(variant) }
                             .padding(horizontal = 14.dp),
@@ -250,7 +262,7 @@ private fun VariantBubble(
                         Text(
                             text = variant,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontSize = 20.sp,
+                            fontSize = KeyboardTokens.BubbleKeySize,
                             textAlign = TextAlign.Center
                         )
                     }
