@@ -19,7 +19,8 @@ data class KeyboardSettings(
     val theme: String = "light",
     val fontSize: Float = 18f,
     val autoCorrection: Boolean = true,
-    val swipeGesture: Boolean = false
+    val swipeGesture: Boolean = false,
+    val kyrgyzAssociation: Boolean = false
 ) {
     companion object {
         const val THEME_LIGHT = "light"

@@ -1,0 +1,34 @@
+# Kyrgyz seed wordlist (PLACEHOLDER - needs native-speaker review/replacement)
+# Format: word<TAB>frequency  (lines starting with # are comments; blank lines ignored)
+# Only for wiring up the association+self-learning pipeline; spelling NOT guaranteed.
+# Uses only Arabic letters present in the keyboard layout, otherwise input cannot match.
+مەن	100
+سەن	95
+بىز	80
+سىلەر	70
+ئۇلار	68
+سالام	90
+ئاتا	85
+ئانا	84
+بالا	82
+كىتەپ	75
+مەكتەپ	74
+سۇ	70
+نان	72
+ئۇي	78
+جول	65
+تىل	57
+ئىش	66
+شاار	45
+كەنت	42
+تاو	48
+چوڭ	58
+قازاق	60
+ئۇيغۇر	60
+قىتاي	62
+جاقشى	77
+كىشى	52
+ئات	50
+سان	44
+تاش	43
+باش	61

@@ -49,6 +49,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.example.kyrgyzkeyboard.data.repository.SettingsRepository
 import com.example.kyrgyzkeyboard.utils.BidiControls
 import com.example.kyrgyzkeyboard.ui.theme.KyrgyzKeyboardTheme
 
@@ -87,6 +88,8 @@ class KyrgyzInputMethodService :
         EnglishKeyboardLayouts.letterLayout(false)
         PinyinKeyboardLayouts.layout
         PinyinDictionary.query("ni")
+        // 柯语词库：异步加载种子表 + 用户词，注入引擎
+        engine.kyrgyzWordProvider = KyrgyzDictionaryStore(this)
     }
 
     override fun onCreateInputView(): View {
@@ -120,7 +123,17 @@ class KyrgyzInputMethodService :
 
     override fun onStartInputView(info: android.view.inputmethod.EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        refreshKyrgyzAssociationSetting()
         syncStateFromEngine()
+    }
+
+    private fun refreshKyrgyzAssociationSetting() {
+        val prefs = getSharedPreferences(
+            SettingsRepository.PREFS_NAME,
+            android.content.Context.MODE_PRIVATE
+        )
+        engine.kyrgyzAssociationEnabled =
+            prefs.getBoolean(SettingsRepository.KEY_KYRGYZ_ASSOCIATION, false)
     }
 
     private fun syncStateFromEngine() {
@@ -214,8 +227,10 @@ private fun KeyboardRoot(
                     .padding(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // 候选栏：仅拼音模式显示
-                if (language == Language.PINYIN) {
+                // 候选栏：拼音模式常显；柯语模式在有输入/候选时显示（联想关闭时恒空不显示）
+                if (language == Language.PINYIN ||
+                    (language == Language.KYRGYZ && (composing.isNotEmpty() || candidates.isNotEmpty()))
+                ) {
                     CandidateBar(
                         composing = composing,
                         candidates = candidates,

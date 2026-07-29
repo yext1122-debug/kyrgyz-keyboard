@@ -38,4 +38,8 @@ interface DictionaryDao {
     /** 按主键将 frequency +1。 */
     @Query("UPDATE words SET frequency = frequency + 1 WHERE id = :id")
     suspend fun incrementFrequency(id: Long)
+
+    /** 按词精确查询（自学习用）。*/
+    @Query("SELECT * FROM words WHERE word = :word LIMIT 1")
+    suspend fun findExact(word: String): WordEntity?
 }

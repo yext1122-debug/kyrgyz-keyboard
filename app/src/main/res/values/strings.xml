@@ -29,6 +29,7 @@
     <string name="settings_sound">按键声音</string>
     <string name="settings_auto_correction">自动纠错</string>
     <string name="settings_swipe_gesture">滑动输入</string>
+    <string name="settings_kyrgyz_association">柯语联想（试验）</string>
     <string name="settings_theme">主题</string>
     <string name="settings_font_size">字体大小</string>
 

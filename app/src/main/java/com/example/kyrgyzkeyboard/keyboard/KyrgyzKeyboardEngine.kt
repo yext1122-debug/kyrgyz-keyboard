@@ -35,6 +35,12 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
     var candidates: List<String> = emptyList()
         private set
 
+    /** 柯语联想开关（默认关，纯本地）。关闭时柯语走原有逐字母直接上屏路径。*/
+    var kyrgyzAssociationEnabled: Boolean = false
+
+    /** 柯语词库提供者，由 Service 注入；为 null 时联想不生效。*/
+    var kyrgyzWordProvider: KyrgyzWordProvider? = null
+
     private var lastKey: Char? = null
     private var keyPressCount: Int = 0
     private var lastPressTime: Long = 0
@@ -125,6 +131,16 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
             composingBuilder.append(code)
             updatePinyinCandidates()
             listener.onComposingChanged(composing)
+            return true
+        }
+        // 柯语联想（默认关）：进入 composing 缓冲，候选来自词库
+        if (currentLanguage == Language.KYRGYZ && kyrgyzAssociationEnabled &&
+            kyrgyzWordProvider != null && code.isNotEmpty()
+        ) {
+            composingBuilder.append(code)
+            updateKyrgyzCandidates()
+            listener.onComposingChanged(composing)
+            autoCancelShift()
             return true
         }
         if (code.isNotEmpty()) {
@@ -237,8 +253,10 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
             FunctionType.BACKSPACE -> {
                 if (composingBuilder.isNotEmpty()) {
                     composingBuilder.deleteCharAt(composingBuilder.length - 1)
-                    if (currentLanguage == Language.PINYIN) {
-                        updatePinyinCandidates()
+                    when (currentLanguage) {
+                        Language.PINYIN -> updatePinyinCandidates()
+                        Language.KYRGYZ -> updateKyrgyzCandidates()
+                        else -> {}
                     }
                     listener.onComposingChanged(composing)
                     return
@@ -290,6 +308,7 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
         composingBuilder.clear()
         candidates = emptyList()
         listener.onCommitCandidate(chosen)
+        if (currentLanguage == Language.KYRGYZ) kyrgyzWordProvider?.learn(chosen)
         resetKeyPressCounter()
         if (chosen.isNotEmpty()) {
             lastChar = chosen.last()
@@ -324,6 +343,20 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
         else PinyinDictionary.query(composingBuilder.toString())
     }
 
+    private fun updateKyrgyzCandidates() {
+        val prefix = composingBuilder.toString()
+        if (prefix.isEmpty()) {
+            candidates = emptyList()
+            return
+        }
+        val words = kyrgyzWordProvider?.query(prefix) ?: emptyList()
+        candidates = when {
+            words.isEmpty() -> listOf(prefix)
+            words.contains(prefix) -> words
+            else -> words + prefix
+        }
+    }
+
 
     private fun commitComposing() {
         if (composingBuilder.isNotEmpty()) {
@@ -331,6 +364,7 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
             composingBuilder.clear()
             candidates = emptyList()
             listener.onCommitCandidate(text)
+            if (currentLanguage == Language.KYRGYZ) kyrgyzWordProvider?.learn(text)
             if (text.isNotEmpty()) {
                 lastChar = text.last()
             }

@@ -22,7 +22,8 @@ class SettingsRepository(private val preferences: SharedPreferences) {
             theme = preferences.getString(KEY_THEME, defaults.theme) ?: defaults.theme,
             fontSize = preferences.getFloat(KEY_FONT_SIZE, defaults.fontSize),
             autoCorrection = preferences.getBoolean(KEY_AUTO_CORRECTION, defaults.autoCorrection),
-            swipeGesture = preferences.getBoolean(KEY_SWIPE_GESTURE, defaults.swipeGesture)
+            swipeGesture = preferences.getBoolean(KEY_SWIPE_GESTURE, defaults.swipeGesture),
+            kyrgyzAssociation = preferences.getBoolean(KEY_KYRGYZ_ASSOCIATION, defaults.kyrgyzAssociation)
         )
     }
 
@@ -35,6 +36,7 @@ class SettingsRepository(private val preferences: SharedPreferences) {
             putFloat(KEY_FONT_SIZE, settings.fontSize)
             putBoolean(KEY_AUTO_CORRECTION, settings.autoCorrection)
             putBoolean(KEY_SWIPE_GESTURE, settings.swipeGesture)
+            putBoolean(KEY_KYRGYZ_ASSOCIATION, settings.kyrgyzAssociation)
         }
     }
 
@@ -47,5 +49,6 @@ class SettingsRepository(private val preferences: SharedPreferences) {
         private const val KEY_FONT_SIZE = "font_size"
         private const val KEY_AUTO_CORRECTION = "auto_correction"
         private const val KEY_SWIPE_GESTURE = "swipe_gesture"
+        const val KEY_KYRGYZ_ASSOCIATION = "kyrgyz_association"
     }
 }

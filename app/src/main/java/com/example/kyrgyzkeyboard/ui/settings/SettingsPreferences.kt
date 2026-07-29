@@ -35,7 +35,8 @@ class SettingsPreferences(private val context: Context) {
             theme = prefs[KEY_THEME] ?: defaults.theme,
             fontSize = prefs[KEY_FONT_SIZE] ?: defaults.fontSize,
             autoCorrection = prefs[KEY_AUTO_CORRECTION] ?: defaults.autoCorrection,
-            swipeGesture = prefs[KEY_SWIPE_GESTURE] ?: defaults.swipeGesture
+            swipeGesture = prefs[KEY_SWIPE_GESTURE] ?: defaults.swipeGesture,
+            kyrgyzAssociation = prefs[KEY_KYRGYZ_ASSOCIATION] ?: defaults.kyrgyzAssociation
         )
     }
 
@@ -45,6 +46,7 @@ class SettingsPreferences(private val context: Context) {
     suspend fun setFontSize(size: Float) = edit { it[KEY_FONT_SIZE] = size }
     suspend fun setAutoCorrection(enabled: Boolean) = edit { it[KEY_AUTO_CORRECTION] = enabled }
     suspend fun setSwipeGesture(enabled: Boolean) = edit { it[KEY_SWIPE_GESTURE] = enabled }
+    suspend fun setKyrgyzAssociation(enabled: Boolean) = edit { it[KEY_KYRGYZ_ASSOCIATION] = enabled }
 
     private suspend inline fun edit(crossinline block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         store.edit { block(it) }
@@ -57,6 +59,7 @@ class SettingsPreferences(private val context: Context) {
         const val PREF_FONT_SIZE = "font_size"
         const val PREF_AUTO_CORRECTION = "auto_correction"
         const val PREF_SWIPE_GESTURE = "swipe_gesture"
+        const val PREF_KYRGYZ_ASSOCIATION = "kyrgyz_association"
 
         internal val KEY_VIBRATE = booleanPreferencesKey(PREF_VIBRATE)
         internal val KEY_SOUND = booleanPreferencesKey(PREF_SOUND)
@@ -64,5 +67,6 @@ class SettingsPreferences(private val context: Context) {
         internal val KEY_FONT_SIZE = floatPreferencesKey(PREF_FONT_SIZE)
         internal val KEY_AUTO_CORRECTION = booleanPreferencesKey(PREF_AUTO_CORRECTION)
         internal val KEY_SWIPE_GESTURE = booleanPreferencesKey(PREF_SWIPE_GESTURE)
+        internal val KEY_KYRGYZ_ASSOCIATION = booleanPreferencesKey(PREF_KYRGYZ_ASSOCIATION)
     }
 }

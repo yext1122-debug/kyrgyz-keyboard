@@ -87,6 +87,13 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                     viewModel.updateSetting(SettingsPreferences.PREF_SWIPE_GESTURE, it)
                 }
             )
+            SwitchItem(
+                title = stringResource(id = R.string.settings_kyrgyz_association),
+                checked = state.kyrgyzAssociation,
+                onCheckedChange = {
+                    viewModel.updateSetting(SettingsPreferences.PREF_KYRGYZ_ASSOCIATION, it)
+                }
+            )
 
             Divider()
 

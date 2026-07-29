@@ -61,6 +61,9 @@ class SettingsViewModel @Inject constructor(
                 SettingsPreferences.PREF_SWIPE_GESTURE -> (value as? Boolean)?.let {
                     preferences.setSwipeGesture(it)
                 }
+                SettingsPreferences.PREF_KYRGYZ_ASSOCIATION -> (value as? Boolean)?.let {
+                    preferences.setKyrgyzAssociation(it)
+                }
             }
         }
     }
