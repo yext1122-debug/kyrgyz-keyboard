@@ -261,10 +261,9 @@ private fun KeyboardRoot(
     onStateChanged: () -> Unit
 ) {
     val rows = remember(language, layout, kyrgyzShift, englishShift) { engine.getRows() }
-    val isRtl = language == Language.KYRGYZ
-    val direction = if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
-
-    CompositionLocalProvider(LocalLayoutDirection provides direction) {
+    // 键盘按键区统一用 LTR 渲染：功能键（123/Shift/退格/符号/语言/空格/换行）与中英文布局保持一致，
+    // 不再随柯语镜像翻转。柯语文本的 RTL 由引擎的双向控制符负责，与键盘 UI 方向无关。
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Surface(
             color = MaterialTheme.colorScheme.surface,
             modifier = Modifier.fillMaxWidth()

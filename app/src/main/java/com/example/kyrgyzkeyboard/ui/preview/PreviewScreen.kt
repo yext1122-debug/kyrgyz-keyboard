@@ -272,10 +272,8 @@ private fun KeyboardPreview(engine: PreviewEngine, fontSize: Float) {
     val rows = remember(engine.tick, engine.currentLanguage, engine.currentLayout, engine.kyrgyzShift, engine.englishShift) {
         engine.engine.getRows()
     }
-    val isRtl = engine.currentLanguage == Language.KYRGYZ
-    val direction = if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
-
-    CompositionLocalProvider(LocalLayoutDirection provides direction) {
+    // 键盘按键区统一用 LTR 渲染，与 IME 保持一致
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Surface(
             color = MaterialTheme.colorScheme.surface,
             modifier = Modifier.fillMaxWidth()
