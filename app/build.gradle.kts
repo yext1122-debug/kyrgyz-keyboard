@@ -64,6 +64,11 @@ android {
     }
 }
 
+// Room 架构导出目录：用于版本迁移校验与迁移测试。
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation(platform("androidx.compose:compose-bom:2024.01.00"))

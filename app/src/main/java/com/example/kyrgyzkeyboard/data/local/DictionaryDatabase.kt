@@ -5,18 +5,39 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import com.example.kyrgyzkeyboard.data.model.WordEntity
 
 /**
  * Room 数据库。词库仅一张表（[WordEntity]）。
+ *
+ * 迁移策略：不使用 fallbackToDestructiveMigration，避免升级时清空用户自学习词。
+ * 每次修改实体 / 表结构时：
+ *   1) 递增 [DB_VERSION]；
+ *   2) 在 [MIGRATIONS] 中追加对应的 Migration；
+ *   3) 提交更新后的 schemas/ 目录（room.schemaLocation 导出）。
  */
-@Database(entities = [WordEntity::class], version = 1, exportSchema = false)
+@Database(entities = [WordEntity::class], version = DictionaryDatabase.DB_VERSION, exportSchema = true)
 abstract class DictionaryDatabase : RoomDatabase() {
 
     abstract fun wordDao(): DictionaryDao
 
     companion object {
+        const val DB_VERSION = 1
         private const val DB_NAME = "kyrgyz_dictionary.db"
+
+        /**
+         * 版本迁移列表。当前仅 v1，无迁移。
+         *
+         * 新增迁移示例（v1 -> v2，为 words 表加一列）：
+         * private val MIGRATION_1_2 = object : Migration(1, 2) {
+         *     override fun migrate(db: SupportSQLiteDatabase) {
+         *         db.execSQL("ALTER TABLE words ADD COLUMN note TEXT")
+         *     }
+         * }
+         * 然后把 MIGRATION_1_2 加入下面的数组。
+         */
+        private val MIGRATIONS: Array<Migration> = emptyArray()
 
         @Volatile
         private var instance: DictionaryDatabase? = null
@@ -29,7 +50,7 @@ abstract class DictionaryDatabase : RoomDatabase() {
 
         private fun build(context: Context): DictionaryDatabase =
             Room.databaseBuilder(context, DictionaryDatabase::class.java, DB_NAME)
-                .fallbackToDestructiveMigration()
+                .addMigrations(*MIGRATIONS)
                 .build()
     }
 }

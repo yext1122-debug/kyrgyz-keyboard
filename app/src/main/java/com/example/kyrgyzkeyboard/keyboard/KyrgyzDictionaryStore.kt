@@ -8,16 +8,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Service-side implementation of [KyrgyzWordProvider].
+ * [KyrgyzWordProvider] 的 Service 侧实现。
  *
- * - Loads a seed wordlist from assets and any learned words from Room into memory.
- * - [query] does an in-memory prefix filter ordered by frequency (fast, sync).
- * - [learn] bumps the in-memory frequency and persists to Room asynchronously.
+ * 管线：assets 种子词表 + Room 自学习词 -> [KyrgyzPrefixIndex]（Trie）内存索引。
+ * - [query] 走 Trie 前缀查询（频次降序），快、同步。
+ * - [learn] 抬升内存频次并异步落库 Room。
  *
- * Purely local; no network. Safe to construct on the main thread (loading is async).
+ * 纯本地，无网络。可在主线程构造（加载在 IO 协程异步进行）。
  */
 class KyrgyzDictionaryStore(
     context: Context,
@@ -27,8 +26,7 @@ class KyrgyzDictionaryStore(
     private val appContext = context.applicationContext
     private val dao = DictionaryDatabase.getInstance(appContext).wordDao()
 
-    // word -> frequency
-    private val freq = ConcurrentHashMap<String, Int>()
+    private val index = KyrgyzPrefixIndex()
 
     @Volatile
     private var loaded = false
@@ -38,48 +36,35 @@ class KyrgyzDictionaryStore(
     }
 
     private suspend fun load() {
-        // 1) seed list from assets
+        // 1) assets 种子词表（词形 [\\t 频次] [\\t 释义]）
         runCatching {
             appContext.assets.open(ASSET_NAME).use { input ->
-                BufferedReader(InputStreamReader(input, Charsets.UTF_8)).forEachLine { raw ->
-                    val line = raw.trim()
-                    if (line.isEmpty() || line.startsWith("#")) return@forEachLine
-                    val parts = line.split('\t')
-                    val word = parts[0].trim()
-                    if (word.isEmpty()) return@forEachLine
-                    val f = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: 0
-                    freq[word] = maxOf(freq[word] ?: 0, f)
+                BufferedReader(InputStreamReader(input, Charsets.UTF_8)).use { reader ->
+                    KyrgyzWordlistImporter.parse(reader).forEach { entry ->
+                        index.put(entry.word, entry.frequency)
+                    }
                 }
             }
         }
-        // 2) learned words from Room (accumulate on top of seed)
+        // 2) Room 自学习词（在种子基础上累加频次）
         runCatching {
             dao.getAll().forEach { entity ->
                 val w = entity.word.trim()
-                if (w.isNotEmpty()) {
-                    freq[w] = (freq[w] ?: 0) + entity.frequency
-                }
+                if (w.isNotEmpty()) index.increment(w, entity.frequency)
             }
         }
         loaded = true
     }
 
     override fun query(prefix: String): List<String> {
-        val p = prefix.trim()
-        if (p.isEmpty() || !loaded) return emptyList()
-        return freq.entries
-            .asSequence()
-            .filter { it.key.startsWith(p) && it.key != p }
-            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key.length }.thenBy { it.key })
-            .map { it.key }
-            .take(MAX_CANDIDATES)
-            .toList()
+        if (!loaded) return emptyList()
+        return index.query(prefix, MAX_CANDIDATES)
     }
 
     override fun learn(word: String) {
         val w = word.trim()
         if (w.isEmpty()) return
-        freq[w] = (freq[w] ?: 0) + 1
+        index.increment(w, 1)
         scope.launch {
             runCatching {
                 val existing = dao.findExact(w)
