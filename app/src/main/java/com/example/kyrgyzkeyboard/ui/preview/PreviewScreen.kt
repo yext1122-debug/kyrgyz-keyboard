@@ -18,10 +18,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +36,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.kyrgyzkeyboard.data.model.KeyboardSettings
 import com.example.kyrgyzkeyboard.keyboard.FunctionType
 import com.example.kyrgyzkeyboard.keyboard.KyrgyzKey
 import com.example.kyrgyzkeyboard.keyboard.KyrgyzKeyboardEngine
@@ -41,7 +44,6 @@ import com.example.kyrgyzkeyboard.keyboard.LayoutType
 import com.example.kyrgyzkeyboard.keyboard.Language
 import com.example.kyrgyzkeyboard.keyboard.KeyboardRow
 import com.example.kyrgyzkeyboard.keyboard.KeyboardRowView
-import com.example.kyrgyzkeyboard.ui.theme.KyrgyzKeyboardTheme
 
 /**
  * 输入法预览页面（无需激活输入法即可测试键盘）。
@@ -55,23 +57,37 @@ import com.example.kyrgyzkeyboard.ui.theme.KyrgyzKeyboardTheme
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PreviewScreen() {
+fun PreviewScreen(
+    settings: KeyboardSettings,
+    onToggleAssociation: (Boolean) -> Unit
+) {
     val engine = remember { PreviewEngine() }
     val outputText by remember { engine.outputText }
     val composing by remember { engine.composing }
     val candidates by remember { engine.candidates }
 
-    KyrgyzKeyboardTheme {
-        Scaffold(
-            topBar = {
-                TopAppBar(title = { Text("柯尔克孜语输入法预览") })
-            }
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-            ) {
+    // 预览引擎实时跟随「柯语联想」设置，使预览与真机一致
+    LaunchedEffect(settings.kyrgyzAssociation) {
+        engine.engine.kyrgyzAssociationEnabled = settings.kyrgyzAssociation
+        engine.syncState()
+    }
+
+    // 复用 App 级主题（跟随设置里的亮/暗/系统），不再自行包裹主题
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("柯尔克孜语输入法预览") })
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            // 联想开关快捷入口：调词库时可直接切换
+            AssociationToggle(
+                enabled = settings.kyrgyzAssociation,
+                onToggle = onToggleAssociation
+            )
                 // 输出文本区（模拟编辑器）
                 Box(
                     modifier = Modifier
@@ -108,9 +124,29 @@ fun PreviewScreen() {
                 }
 
                 // 键盘区域
-                KeyboardPreview(engine = engine)
-            }
+                KeyboardPreview(engine = engine, fontSize = settings.fontSize)
         }
+    }
+}
+
+@Composable
+private fun AssociationToggle(
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "柯语联想（试验）",
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 15.sp,
+            modifier = Modifier.weight(1f)
+        )
+        Switch(checked = enabled, onCheckedChange = onToggle)
     }
 }
 
@@ -231,7 +267,7 @@ private fun CandidateBarPreview(
 
 
 @Composable
-private fun KeyboardPreview(engine: PreviewEngine) {
+private fun KeyboardPreview(engine: PreviewEngine, fontSize: Float) {
     val rows = remember(engine.tick, engine.currentLanguage, engine.currentLayout, engine.kyrgyzShift, engine.englishShift) {
         engine.engine.getRows()
     }
@@ -270,7 +306,7 @@ private fun KeyboardPreview(engine: PreviewEngine) {
                     key(engine.currentLanguage, engine.currentLayout, engine.kyrgyzShift, engine.englishShift, rowIndex) {
                         KeyboardRowView(
                             row = row,
-                            fontSize = 20f,
+                            fontSize = fontSize,
                             shiftActive = shiftActive,
                             shiftLocked = engine.shiftLocked,
                             onKey = onKey,
@@ -283,3 +319,9 @@ private fun KeyboardPreview(engine: PreviewEngine) {
         }
     }
 }
+
+
+
+
+
+
