@@ -197,9 +197,9 @@ class KyrgyzInputMethodService :
         when (action) {
             FunctionType.SPACE -> ic.commitText(" ", 1)
             FunctionType.NEWLINE -> {
-                val action = editorAction
-                if (action != null) {
-                    ic.performEditorAction(action)
+                val pendingAction = editorAction
+                if (pendingAction != null) {
+                    ic.performEditorAction(pendingAction)
                 } else {
                     ic.commitText("\n", 1)
                 }
@@ -378,3 +378,4 @@ private fun CandidateBar(
         }
     }
 }
+

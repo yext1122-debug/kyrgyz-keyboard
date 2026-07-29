@@ -17,6 +17,11 @@
     <string name="delete_confirm_cancel">取消</string>
     <string name="done">完成</string>
     <string name="empty_dictionary">词库为空</string>
+    <string name="dictionary_count">共 %1$d 条 · 当前显示 %2$d 条</string>
+    <string name="dictionary_no_result">没有匹配的词条</string>
+    <string name="dictionary_category_all">全部</string>
+    <string name="dictionary_edit_word">编辑词条</string>
+    <string name="dictionary_freq">频次 %1$d</string>
 
     <!-- ===== 键盘功能键 ===== -->
     <string name="space">空格</string>

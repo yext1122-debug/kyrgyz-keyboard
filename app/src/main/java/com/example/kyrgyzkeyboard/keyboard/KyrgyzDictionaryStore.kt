@@ -1,18 +1,17 @@
-package com.example.kyrgyzkeyboard.keyboard
+﻿package com.example.kyrgyzkeyboard.keyboard
 
 import android.content.Context
 import com.example.kyrgyzkeyboard.data.local.DictionaryDatabase
 import com.example.kyrgyzkeyboard.data.model.WordEntity
+import com.example.kyrgyzkeyboard.data.repository.DictionarySeeder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.io.BufferedReader
-import java.io.InputStreamReader
 
 /**
  * [KyrgyzWordProvider] 的 Service 侧实现。
  *
- * 管线：assets 种子词表 + Room 自学习词 -> [KyrgyzPrefixIndex]（Trie）内存索引。
+ * 管线：Room 词库（种子词表首启已灌入 + 用户自学习词）-> [KyrgyzPrefixIndex]（Trie）内存索引。
  * - [query] 走 Trie 前缀查询（频次降序），快、同步。
  * - [learn] 抬升内存频次并异步落库 Room。
  *
@@ -36,21 +35,13 @@ class KyrgyzDictionaryStore(
     }
 
     private suspend fun load() {
-        // 1) assets 种子词表（词形 [\\t 频次] [\\t 释义]）
-        runCatching {
-            appContext.assets.open(ASSET_NAME).use { input ->
-                BufferedReader(InputStreamReader(input, Charsets.UTF_8)).use { reader ->
-                    KyrgyzWordlistImporter.parse(reader).forEach { entry ->
-                        index.put(entry.word, entry.frequency)
-                    }
-                }
-            }
-        }
-        // 2) Room 自学习词（在种子基础上累加频次）
+        // 首启把 assets 种子词表灌入 Room（幂等），保证词库唯一数据源。
+        runCatching { DictionarySeeder.seedIfNeeded(appContext, dao) }
+        // Room 词库（种子词 + 用户自学习词）一次性载入 Trie。
         runCatching {
             dao.getAll().forEach { entity ->
                 val w = entity.word.trim()
-                if (w.isNotEmpty()) index.increment(w, entity.frequency)
+                if (w.isNotEmpty()) index.put(w, entity.frequency)
             }
         }
         loaded = true
@@ -78,8 +69,8 @@ class KyrgyzDictionaryStore(
     }
 
     companion object {
-        private const val ASSET_NAME = "kyrgyz_words.txt"
         private const val CATEGORY_USER = "user"
         private const val MAX_CANDIDATES = 8
     }
 }
+
