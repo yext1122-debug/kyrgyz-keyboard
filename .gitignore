@@ -21,3 +21,5 @@ Thumbs.db
 # --- Keystore（示例） ---
 *.jks
 *.keystore
+# IDE 误建的临时工程目录（2026-10-29 发现，可安全删除）
+/untitled/
