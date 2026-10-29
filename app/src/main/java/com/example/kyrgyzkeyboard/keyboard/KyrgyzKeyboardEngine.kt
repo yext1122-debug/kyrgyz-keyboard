@@ -381,6 +381,23 @@ class KyrgyzKeyboardEngine(private val listener: Listener) {
         }
     }
 
+    /**
+     * 丢弃未完成的 composing 与连按状态。
+     *
+     * 用于：切换输入框（`onStartInput`）、输入结束（`onFinishInput`）、光标移出（`onUpdateSelection`）。
+     *
+     * 与 `commitComposing()` 的区别：**不把半截内容上屏**，直接丢弃——
+     * 避免把上一个输入框的拼音塞进新输入框。
+     */
+    fun reset() {
+        val hadComposing = composingBuilder.isNotEmpty() || candidates.isNotEmpty()
+        composingBuilder.clear()
+        candidates = emptyList()
+        lastChar = null
+        resetKeyPressCounter()
+        if (hadComposing) listener.onComposingChanged("")
+    }
+
     private fun resetKeyPressCounter() {
         lastKey = null
         keyPressCount = 0
