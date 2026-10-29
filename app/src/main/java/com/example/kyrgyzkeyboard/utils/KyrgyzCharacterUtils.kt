@@ -38,53 +38,59 @@ object KyrgyzCharacterUtils {
     val PUNCTUATION: Set<String> = KyrgyzAlphabet.PUNCTUATION.toSet()
 
     /**
-     * QWERTY 键位 -> 柯尔克孜字母的映射（GB/T 31917-2015 表 2 标准）。
+     * QWERTY 键位 -> 柯尔克孜字母的映射（GB/T 31917-2015 表 2 第 1 层）。
      * 与 [com.example.kyrgyzkeyboard.keyboard.KyrgyzKeyboardLayouts.DefaultLayout] 主键位一一对应。
+     *
+     * 行对应：`A`…`'` ↔ C01–C11，`Q`…`P` ↔ D01–D10，`Z`…`/` ↔ B01–B10。
+     * 表 2 的 E00（`ـ` / `…`）无对应物理键位，不在此表内。
      */
     private val QWERTY_TO_KYRGYZ: Map<Char, String> = mapOf(
-        // 第 1 排 (C01-C10)
-        'q' to "\u06BE", // ھ
-        'w' to "\u0633", // س
-        'e' to "\u062F", // د
-        'r' to "\u0627", // ا
-        't' to "\u06D5", // ە
-        'y' to "\u0649", // ى
-        'u' to "\u0642", // ق
-        'i' to "\u0643", // غ
-        'o' to "\u0644", // ل
-        'p' to "\u061B", // ؛
-        // 第 2 排 (D01-D10)
-        'a' to "\u0686", // چ
-        's' to "\u06CB", // ۋ
-        'd' to "\u06D5", // ە
-        'f' to "\u0631", // ر
-        'g' to "\u062A", // ت
-        'h' to "\u064A", // ي
-        'j' to "\u06C7", // ۇ
-        'k' to "\u06AD", // ڭ
-        'l' to "\u0648", // و
-        // 第 3 排 (B01-B08 + E00)
-        'z' to "\u0640", // ـ (拉长符)
-        'x' to "\u0632", // ز
-        'c' to "\u0634", // ش
-        'v' to "\u0639", // ع
-        'b' to "\u06C9", // ۉ
-        'n' to "\u0628", // ب
-        'm' to "\u0645", // م
-        ',' to "\u060C", // ، (逗号)
-        '.' to "\u00BB"  // » (右引号)
+        // D 行 (D01-D10)
+        'q' to "\u0686", // D01 چ
+        'w' to "\u06CB", // D02 ۋ
+        'e' to "\u06D5", // D03 ە
+        'r' to "\u0631", // D04 ر
+        't' to "\u062A", // D05 ت
+        'y' to "\u064A", // D06 ي
+        'u' to "\u06C7", // D07 ۇ
+        'i' to "\u06AD", // D08 ڭ
+        'o' to "\u0648", // D09 و
+        'p' to "\u067E", // D10 پ
+        // C 行 (C01-C11)
+        'a' to "\u06BE", // C01 ھ
+        's' to "\u0633", // C02 س
+        'd' to "\u062F", // C03 د
+        'f' to "\u0627", // C04 ا
+        'g' to "\u06D5", // C05 ە
+        'h' to "\u0649", // C06 ى
+        'j' to "\u0642", // C07 ق
+        'k' to "\u0643", // C08 ك
+        'l' to "\u0644", // C09 ل
+        ';' to "\u061B", // C10 ؛
+        '\'' to "\u00BB", // C11 »
+        // B 行 (B01-B10)
+        'z' to "\u0632", // B01 ز
+        'x' to "\u0634", // B02 ش
+        'c' to "\u0639", // B03 ع
+        'v' to "\u06C9", // B04 ۉ
+        'b' to "\u0628", // B05 ب
+        'n' to "\u0646", // B06 ن
+        'm' to "\u0645", // B07 م
+        ',' to "\u060C", // B08 ،
+        '.' to "\u002E", // B09 .（无柯文字母）
+        '/' to "\u0626"  // B10 ئ
     )
 
     /**
      * QWERTY Shift 层键位映射（GB/T 31917-2015 表 2 第 2 层）。
+     * 表 2 未规定第 2 层的键，回落到第 1 层映射（见 [getKeyboardMapping]）。
      */
     private val QWERTY_TO_KYRGYZ_SHIFT: Map<Char, String> = mapOf(
-        'r' to "\u0641", // ف
-        't' to "\u06AF", // غ
-        'y' to "\u062D", // ح
-        'p' to "\u061F", // ؟
-        'z' to "\u2026", // …
-        '.' to "\u00AB"  // « (左引号)
+        'f' to "\u0641",  // C04 第 2 层 ف
+        'g' to "\u06AF",  // C05 第 2 层 گ
+        'h' to "\u062D",  // C06 第 2 层 ح
+        '\'' to "\u00AB", // C11 第 2 层 «
+        '/' to "\u061F"   // B10 第 2 层 ؟
     )
 
     /**

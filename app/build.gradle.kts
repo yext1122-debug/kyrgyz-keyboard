@@ -93,5 +93,8 @@ dependencies {
     // Step 9: Material Components (Theme.Material3.DayNight 的父主题)
     implementation("com.google.android.material:material:1.11.0")
 
+    // T01: 布局覆盖单元测试
+    testImplementation("junit:junit:4.13.2")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

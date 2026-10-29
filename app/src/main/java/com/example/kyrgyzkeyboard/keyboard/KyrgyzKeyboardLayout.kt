@@ -43,35 +43,66 @@ object KyrgyzAlphabet {
 object KyrgyzKeyboardLayouts {
 
     /**
-     * QWERTY 字母主布局（柯尔克孜文）。
-     * 左上角增加快速切换数字键盘的按钮。
+     * 字母主布局（第 1 层），逐键对齐 GB/T 31917-2015 表 2。
+     *
+     * 列号 ↔ QWERTY 对应关系（与表 2 的列号规则一致）：
+     * - C01–C11 ↔ `A` … `'`
+     * - D01–D10 ↔ `Q` … `P`
+     * - B01–B10 ↔ `Z` … `/`
+     *
+     * 表 2 的 E00（数字行 `ـ`，第 2 层 `…`）在本应用中没有独立键位：默认布局不渲染数字行，
+     * `ـ` 与 `…` 仍可从 [SymbolLayout] 输入。此偏差已记录在 T01 任务笔记。
      */
     val DefaultLayout: List<KeyboardRow> = listOf(
-        // Row 1 (Q-P + 快捷数字键)
+        // C 行（C01–C11）：ھ س د ا ە ى ق ك ل ؛ »
         KeyboardRow(listOf(
             KyrgyzKey.switchDigital("123"), // 快速数字键
-            KyrgyzKey.letter("\u06BE"), KyrgyzKey.letter("\u0633"), KyrgyzKey.letter("\u062F"),
-            KyrgyzKey.letter("\u0627"), KyrgyzKey.letter("\u06D5"), KyrgyzKey.letter("\u0649"),
-            KyrgyzKey.letter("\u0642"), KyrgyzKey.letter("\u0643"), KyrgyzKey.letter("\u0644"), KyrgyzKey.letter("\u061B")
+            KyrgyzKey.letter("\u06BE"), // C01 ھ —— 非 30 字母成员，但表 2 为其分配了键位
+            KyrgyzKey.letter("\u0633"), // C02 س
+            KyrgyzKey.letter("\u062F"), // C03 د
+            KyrgyzKey.letter("\u0627"), // C04 ا
+            KyrgyzKey.letter("\u06D5"), // C05 ە
+            KyrgyzKey.letter("\u0649"), // C06 ى
+            KyrgyzKey.letter("\u0642"), // C07 ق
+            KyrgyzKey.letter("\u0643"), // C08 ك
+            KyrgyzKey.letter("\u0644"), // C09 ل
+            KyrgyzKey.symbol("\u061B"), // C10 ؛
+            KyrgyzKey.symbol("\u00BB")  // C11 »
         )),
-        // Row 2 (A-L)
+        // D 行（D01–D10）：چ ۋ ە ر ت ي ۇ ڭ و پ
         KeyboardRow(listOf(
-            KyrgyzKey.letter("\u0686"), KyrgyzKey.letter("\u06CB"), KyrgyzKey.letter("\u06D5"),
-            KyrgyzKey.letter("\u0631"), KyrgyzKey.letter("\u062A"), KyrgyzKey.letter("\u064A"),
-            KyrgyzKey.letter("\u06C7"), KyrgyzKey.letter("\u06AD"), KyrgyzKey.letter("\u0648")
+            // TODO(标准待补)：ج(062C) 在表 2 中无键位，暂挂 چ 键长按变体
+            KyrgyzKey.letter("\u0686", variants = listOf("\u062C")), // D01 چ（长按 ج）
+            // TODO(标准待补)：ۅ(06C5) 在表 2 中无键位，暂挂 ۋ 键长按变体
+            KyrgyzKey.letter("\u06CB", variants = listOf("\u06C5")), // D02 ۋ（长按 ۅ）
+            KyrgyzKey.letter("\u06D5"), // D03 ە
+            KyrgyzKey.letter("\u0631"), // D04 ر
+            KyrgyzKey.letter("\u062A"), // D05 ت
+            KyrgyzKey.letter("\u064A"), // D06 ي
+            KyrgyzKey.letter("\u06C7"), // D07 ۇ
+            KyrgyzKey.letter("\u06AD"), // D08 ڭ
+            KyrgyzKey.letter("\u0648"), // D09 و
+            KyrgyzKey.letter("\u067E")  // D10 پ
         )),
-        // Row 3 (Shift + Z-M + 退格)
+        // B 行（B01–B10）：ز ش ع ۉ ب ن م ، . ئ
         KeyboardRow(listOf(
             KyrgyzKey.shift(),
-            KyrgyzKey.letter("\u0640"), KyrgyzKey.letter("\u0632"), KyrgyzKey.letter("\u0634"),
-            KyrgyzKey.letter("\u0639"), KyrgyzKey.letter("\u06C9"), KyrgyzKey.letter("\u0628"),
-            KyrgyzKey.letter("\u0645"), KyrgyzKey.symbol("\u060C"), KyrgyzKey.backspace()
+            KyrgyzKey.letter("\u0632"), // B01 ز
+            KyrgyzKey.letter("\u0634"), // B02 ش
+            KyrgyzKey.letter("\u0639"), // B03 ع
+            KyrgyzKey.letter("\u06C9"), // B04 ۉ
+            KyrgyzKey.letter("\u0628"), // B05 ب
+            KyrgyzKey.letter("\u0646"), // B06 ن
+            KyrgyzKey.letter("\u0645"), // B07 م
+            KyrgyzKey.symbol("\u060C"), // B08 ،
+            KyrgyzKey.symbol("\u002E"), // B09 .（表 2 无柯文字母，仅句点）
+            KyrgyzKey.letter("\u0626"), // B10 ئ
+            KyrgyzKey.backspace()
         )),
-        // Row 4 (功能键区)
+        // 功能键区（表 2 未覆盖，沿用应用原有配置）
         KeyboardRow(listOf(
             KyrgyzKey.switchLayout("符号"),
             KyrgyzKey.switchLanguage("قىر"),
-            KyrgyzKey.symbol("."),
             KyrgyzKey.space(),
             KyrgyzKey.symbol("!"),
             KyrgyzKey.newline()
@@ -79,30 +110,60 @@ object KyrgyzKeyboardLayouts {
     )
 
     /**
-     * Shift 层布局。
+     * Shift 层（第 2 层）：按表 2 已公布的第 2 层键位填充
+     * （C04 ف、C05 گ、C06 ح、C11 «、B10 ؟）；
+     * 表 2 未规定第 2 层的键，沿用第 1 层字符。
      */
     val ShiftLayout: List<KeyboardRow> = listOf(
+        // C 行（C01–C11）：ھ س د ف گ ح ق ك ل ؛ «
         KeyboardRow(listOf(
             KyrgyzKey.switchDigital("123"),
-            KyrgyzKey.letter("\u06BE"), KyrgyzKey.letter("\u0633"), KyrgyzKey.letter("\u062F"),
-            KyrgyzKey.letter("\u0641"), KyrgyzKey.letter("\u06AF"), KyrgyzKey.letter("\u062D"),
-            KyrgyzKey.letter("\u0642"), KyrgyzKey.letter("\u0643"), KyrgyzKey.letter("\u0644"), KyrgyzKey.symbol("\u061F")
+            KyrgyzKey.letter("\u06BE"), // C01
+            KyrgyzKey.letter("\u0633"), // C02
+            KyrgyzKey.letter("\u062F"), // C03
+            KyrgyzKey.letter("\u0641"), // C04 第 2 层 ف
+            KyrgyzKey.letter("\u06AF"), // C05 第 2 层 گ
+            KyrgyzKey.letter("\u062D"), // C06 第 2 层 ح
+            KyrgyzKey.letter("\u0642"), // C07
+            KyrgyzKey.letter("\u0643"), // C08
+            KyrgyzKey.letter("\u0644"), // C09
+            KyrgyzKey.symbol("\u061B"), // C10（表 2 未规定，沿用第 1 层）
+            KyrgyzKey.symbol("\u00AB")  // C11 第 2 层 «
         )),
+        // D 行（D01–D10）：表 2 未规定第 2 层，全部沿用第 1 层
         KeyboardRow(listOf(
-            KyrgyzKey.letter("\u0686"), KyrgyzKey.letter("\u06CB"), KyrgyzKey.letter("\u06D5"),
-            KyrgyzKey.letter("\u0631"), KyrgyzKey.letter("\u062A"), KyrgyzKey.letter("\u064A"),
-            KyrgyzKey.letter("\u06C7"), KyrgyzKey.letter("\u06AD"), KyrgyzKey.letter("\u0648")
+            // TODO(标准待补)：ج(062C) 在表 2 中无键位，暂挂 چ 键长按变体
+            KyrgyzKey.letter("\u0686", variants = listOf("\u062C")), // D01 چ（长按 ج）
+            // TODO(标准待补)：ۅ(06C5) 在表 2 中无键位，暂挂 ۋ 键长按变体
+            KyrgyzKey.letter("\u06CB", variants = listOf("\u06C5")), // D02 ۋ（长按 ۅ）
+            KyrgyzKey.letter("\u06D5"), // D03
+            KyrgyzKey.letter("\u0631"), // D04
+            KyrgyzKey.letter("\u062A"), // D05
+            KyrgyzKey.letter("\u064A"), // D06
+            KyrgyzKey.letter("\u06C7"), // D07
+            KyrgyzKey.letter("\u06AD"), // D08
+            KyrgyzKey.letter("\u0648"), // D09
+            KyrgyzKey.letter("\u067E")  // D10
         )),
+        // B 行（B01–B10）：ز ش ع ۉ ب ن م ، . ؟
         KeyboardRow(listOf(
             KyrgyzKey.shift(),
-            KyrgyzKey.symbol("\u2026"), KyrgyzKey.letter("\u0632"), KyrgyzKey.letter("\u0634"),
-            KyrgyzKey.letter("\u0639"), KyrgyzKey.letter("\u06C9"), KyrgyzKey.letter("\u0628"),
-            KyrgyzKey.letter("\u0645"), KyrgyzKey.symbol("\u00BB"), KyrgyzKey.backspace()
+            KyrgyzKey.letter("\u0632"), // B01
+            KyrgyzKey.letter("\u0634"), // B02
+            KyrgyzKey.letter("\u0639"), // B03
+            KyrgyzKey.letter("\u06C9"), // B04
+            KyrgyzKey.letter("\u0628"), // B05
+            KyrgyzKey.letter("\u0646"), // B06
+            KyrgyzKey.letter("\u0645"), // B07
+            KyrgyzKey.symbol("\u060C"), // B08
+            KyrgyzKey.symbol("\u002E"), // B09（表 2 未规定第 2 层，沿用第 1 层）
+            KyrgyzKey.symbol("\u061F"), // B10 第 2 层 ؟
+            KyrgyzKey.backspace()
         )),
+        // 功能键区（表 2 未覆盖，沿用应用原有配置）
         KeyboardRow(listOf(
             KyrgyzKey.switchLayout("符号"),
             KyrgyzKey.switchLanguage("قىر"),
-            KyrgyzKey.symbol("\u00AB"),
             KyrgyzKey.space(),
             KyrgyzKey.symbol("?"),
             KyrgyzKey.newline()
