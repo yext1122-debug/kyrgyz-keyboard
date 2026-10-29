@@ -33,10 +33,43 @@
 
 ## 安装 & 运行
 
-```bash
-git clone <your-fork-url> KyrgyzKeyboard
-cd KyrgyzKeyboard
+### 环境要求
+
+| 项 | 要求 |
+|---|---|
+| JDK | **17**（`JAVA_HOME` 指向 JDK 17；AGP 8.2 / Gradle 8.2 不支持 JDK 21+ 的某些发行版） |
+| Android SDK | Platform 34 + Build-Tools 34.0.0 |
+| Gradle | 由 wrapper 自动下载，无需预装 |
+| **项目路径** | **不能含中文或空格**（Windows 上 AGP 会直接中止构建，报 `Your project path contains non-ASCII characters`） |
+
+首次构建前在项目根目录创建 `local.properties`（已在 `.gitignore` 中，不会入库）：
+
+```properties
+sdk.dir=/path/to/Android/Sdk
 ```
+
+然后：
+
+```bash
+export JAVA_HOME=/path/to/jdk-17   # Windows: set JAVA_HOME=C:\path\to\jdk-17
+./gradlew assembleDebug            # 产物：app/build/outputs/apk/debug/app-debug.apk
+./gradlew testDebugUnitTest        # 单元测试（布局覆盖等）
+```
+
+> 仓库不写死任何 JDK 绝对路径；换机器只需正确设置 `JAVA_HOME`。
+
+### 常见问题
+
+**构建报 `Your project path contains non-ASCII characters`**
+
+AGP 在 Windows 上会拒绝含中文/空格的路径。两种处理：
+
+1. **推荐**：把项目移到纯 ASCII 路径（如 `C:\dev\kyrgyz-keyboard`）。
+2. 仅本机临时绕过：在**用户级** `~/.gradle/gradle.properties` 加一行 `android.overridePathCheck=true`（不要写进仓库的 `gradle.properties`，否则会掩盖其他人的同类问题）。
+
+**构建报 `Unsupported class file major version` / `Java home` 相关错误**
+
+Gradle 8.2 不支持 Java 21+，请把 `JAVA_HOME` 指回 JDK 17。
 
 在 Android Studio 中：
 
