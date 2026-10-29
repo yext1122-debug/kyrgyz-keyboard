@@ -16,8 +16,8 @@ android {
         applicationId = "com.example.kyrgyzkeyboard"
         minSdk = 24
         targetSdk = 34
-        versionCode = 5
-        versionName = "1.1.3"
+        versionCode = 6
+        versionName = "1.2.0"
     }
 
     signingConfigs {
